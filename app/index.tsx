@@ -1,50 +1,66 @@
-import { Platform, useWindowDimensions } from 'react-native';
+import { Canvas, Group, Image, useImage } from '@shopify/react-native-skia';
+import { useCallback, useEffect, useState } from 'react';
 import {
-  Canvas,
-  useImage,
-  Image,
-  Group,
-  Text,
-  matchFont,
-} from '@shopify/react-native-skia';
+  StyleSheet,
+  Text as RNText,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import {
-  useSharedValue,
-  withTiming,
-  Easing,
-  withSequence,
-  withRepeat,
-  useFrameCallback,
-  useDerivedValue,
-  interpolate,
-  Extrapolation,
-  useAnimatedReaction,
-  runOnJS,
-  cancelAnimation,
-} from 'react-native-reanimated';
-import { useEffect, useState } from 'react';
-import {
-  GestureHandlerRootView,
-  GestureDetector,
   Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
 } from 'react-native-gesture-handler';
+import {
+  Easing,
+  Extrapolation,
+  cancelAnimation,
+  interpolate,
+  runOnJS,
+  useAnimatedReaction,
+  useDerivedValue,
+  useFrameCallback,
+  useSharedValue,
+  withSequence,
+  withTiming
+} from 'react-native-reanimated';
 
-const GRAVITY = 1000;
-const JUMP_FORCE = -500;
+import { useGameResources } from '../hooks/useGameResources';
+
+const DEFAULT_GRAVITY = 1000;
+const DEFAULT_JUMP_FORCE = -500;
 
 const pipeWidth = 104;
 const pipeHeight = 640;
+const baseHeight = 150;
 
 const App = () => {
   const { width, height } = useWindowDimensions();
   const [score, setScore] = useState(0);
+  const {
+    config,
+    highScore,
+    resourceError,
+    updateHighScore,
+  } = useGameResources();
+  const [gameState, setGameState] = useState<'menu' | 'playing' | 'gameover'>(
+    'menu'
+  );
 
   const bg = useImage(require('../assets/sprites/background-day.png'));
-  const bird = useImage(require('../assets/sprites/yellowbird-upflap.png'));
+  const bird = useImage(require('../assets/sprites/Item_Bread1.png'));
   const pipeBottom = useImage(require('../assets/sprites/pipe-green.png'));
   const pipeTop = useImage(require('../assets/sprites/pipe-green-top.png'));
   const base = useImage(require('../assets/sprites/base.png'));
 
+  const gravity = useSharedValue(DEFAULT_GRAVITY);
+  const jumpForce = useSharedValue(DEFAULT_JUMP_FORCE);
+  const pipeGap = useSharedValue(config.pipeGap);
+  const speedMultiplier = useSharedValue(1);
+  const scoreValue = useSharedValue(0);
   const gameOver = useSharedValue(false);
+  const isPlaying = useSharedValue(false);
   const pipeX = useSharedValue(width);
 
   const birdY = useSharedValue(height / 3);
@@ -52,12 +68,26 @@ const App = () => {
   const birdYVelocity = useSharedValue(0);
 
   const pipeOffset = useSharedValue(0);
-  const topPipeY = useDerivedValue(() => pipeOffset.value - 320);
-  const bottomPipeY = useDerivedValue(() => height - 320 + pipeOffset.value);
+  const topPipeY = useDerivedValue(() => {
+    const centerY = height / 2 + pipeOffset.value;
+    return centerY - pipeGap.value / 2 - pipeHeight;
+  });
+  const bottomPipeY = useDerivedValue(() => {
+    const centerY = height / 2 + pipeOffset.value;
+    return centerY + pipeGap.value / 2;
+  });
 
   const pipesSpeed = useDerivedValue(() => {
-    return interpolate(score, [0, 20], [1, 2]);
+    return interpolate(scoreValue.value, [0, 20], [1, 2]) * speedMultiplier.value;
   });
+
+  const incrementScore = useCallback(() => {
+    setScore((prev) => prev + 1);
+  }, []);
+
+  const resetScore = useCallback(() => {
+    setScore(0);
+  }, []);
 
   const obstacles = useDerivedValue(() => [
     // bottom pipe
@@ -76,20 +106,79 @@ const App = () => {
     },
   ]);
 
-  useEffect(() => {
-    moveTheMap();
-  }, []);
-
-  const moveTheMap = () => {
+  const moveTheMap = useCallback(() => {
+    if (!isPlaying.value) {
+      return;
+    }
     pipeX.value = withSequence(
       withTiming(width, { duration: 0 }),
       withTiming(-150, {
-        duration: 3000 / pipesSpeed.value,
+        duration: 3000 / Math.max(pipesSpeed.value, 0.5),
         easing: Easing.linear,
       }),
       withTiming(width, { duration: 0 })
     );
-  };
+  }, [isPlaying, pipeX, pipesSpeed, width]);
+
+  const prepareRun = useCallback(() => {
+    birdY.value = height / 3;
+    birdYVelocity.value = 0;
+    pipeX.value = width;
+    pipeOffset.value = 0;
+    scoreValue.value = 0;
+  }, [birdY, birdYVelocity, height, pipeOffset, pipeX, scoreValue, width]);
+
+  const startRun = useCallback(() => {
+    prepareRun();
+    resetScore();
+    isPlaying.value = true;
+    gameOver.value = false;
+    setGameState('playing');
+    moveTheMap();
+  }, [gameOver, isPlaying, moveTheMap, prepareRun, resetScore]);
+
+  const returnToMenu = useCallback(() => {
+    prepareRun();
+    resetScore();
+    isPlaying.value = false;
+    gameOver.value = false;
+    cancelAnimation(pipeX);
+    setGameState('menu');
+  }, [gameOver, isPlaying, pipeX, prepareRun, resetScore]);
+
+  const handleGameOver = useCallback(() => {
+    isPlaying.value = false;
+    setGameState('gameover');
+  }, [isPlaying]);
+
+  useEffect(() => {
+    gravity.value = config.gravity;
+    jumpForce.value = config.jumpForce;
+    pipeGap.value = config.pipeGap;
+    speedMultiplier.value = config.speedMultiplier;
+    pipeOffset.value = 0;
+  }, [config, gravity, jumpForce, pipeGap, pipeOffset, speedMultiplier]);
+
+  useEffect(() => {
+    if (gameState === 'playing') {
+      isPlaying.value = true;
+      gameOver.value = false;
+      moveTheMap();
+    } else {
+      isPlaying.value = false;
+      cancelAnimation(pipeX);
+    }
+  }, [gameOver, gameState, isPlaying, moveTheMap, pipeX]);
+
+  useEffect(() => {
+    scoreValue.value = score;
+  }, [score, scoreValue]);
+
+  useEffect(() => {
+    if (score > highScore) {
+      void updateHighScore(score);
+    }
+  }, [highScore, score, updateHighScore]);
 
   // Scoring system
   useAnimatedReaction(
@@ -99,7 +188,10 @@ const App = () => {
 
       // change offset for the position of the next gap
       if (previousValue && currentValue < -100 && previousValue > -100) {
-        pipeOffset.value = Math.random() * 400 - 200;
+        const maxOffset = (height - baseHeight - pipeGap.value) / 2;
+        const randomOffset =
+          maxOffset <= 0 ? 0 : (Math.random() - 0.5) * maxOffset;
+        pipeOffset.value = randomOffset;
         cancelAnimation(pipeX);
         runOnJS(moveTheMap)();
       }
@@ -111,7 +203,8 @@ const App = () => {
         previousValue > middle
       ) {
         // do something ✨
-        runOnJS(setScore)(score + 1);
+        scoreValue.value = scoreValue.value + 1;
+        runOnJS(incrementScore)();
       }
     }
   );
@@ -136,7 +229,7 @@ const App = () => {
       };
 
       // Ground collision detection
-      if (currentValue > height - 100 || currentValue < 0) {
+      if (currentValue > height - baseHeight || currentValue < 0) {
         gameOver.value = true;
       }
 
@@ -154,36 +247,25 @@ const App = () => {
     (currentValue, previousValue) => {
       if (currentValue && !previousValue) {
         cancelAnimation(pipeX);
+        runOnJS(handleGameOver)();
       }
     }
   );
 
   useFrameCallback(({ timeSincePreviousFrame: dt }) => {
-    if (!dt || gameOver.value) {
+    if (!dt || !isPlaying.value || gameOver.value) {
       return;
     }
     birdY.value = birdY.value + (birdYVelocity.value * dt) / 1000;
-    birdYVelocity.value = birdYVelocity.value + (GRAVITY * dt) / 1000;
+    birdYVelocity.value = birdYVelocity.value + (gravity.value * dt) / 1000;
   });
 
-  const restartGame = () => {
-    'worklet';
-    birdY.value = height / 3;
-    birdYVelocity.value = 0;
-    gameOver.value = false;
-    pipeX.value = width;
-    runOnJS(moveTheMap)();
-    runOnJS(setScore)(0);
-  };
-
   const gesture = Gesture.Tap().onStart(() => {
-    if (gameOver.value) {
-      // restart
-      restartGame();
-    } else {
-      // jump
-      birdYVelocity.value = JUMP_FORCE;
+    'worklet';
+    if (!isPlaying.value || gameOver.value) {
+      return;
     }
+    birdYVelocity.value = jumpForce.value;
   });
 
   const birdTransform = useDerivedValue(() => {
@@ -202,64 +284,173 @@ const App = () => {
     return { x: width / 4 + 32, y: birdY.value + 24 };
   });
 
-  const fontFamily = Platform.select({ ios: 'Helvetica', default: 'serif' });
-  const fontStyle = {
-    fontFamily,
-    fontSize: 40,
-    fontWeight: 'bold',
-  };
-  const font = matchFont(fontStyle);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={styles.root}>
       <GestureDetector gesture={gesture}>
-        <Canvas style={{ width, height }}>
-          {/* BG */}
-          <Image image={bg} width={width} height={height} fit={'cover'} />
+        <View style={styles.root}>
+          <Canvas style={[styles.canvas, { width, height }]}>
+            {/* BG */}
+            <Image image={bg} width={width} height={height} fit={'cover'} />
 
-          {/* Pipes */}
-          <Image
-            image={pipeTop}
-            y={topPipeY}
-            x={pipeX}
-            width={pipeWidth}
-            height={pipeHeight}
-          />
-          <Image
-            image={pipeBottom}
-            y={bottomPipeY}
-            x={pipeX}
-            width={pipeWidth}
-            height={pipeHeight}
-          />
+            {/* Pipes */}
+            <Image
+              image={pipeTop}
+              y={topPipeY}
+              x={pipeX}
+              width={pipeWidth}
+              height={pipeHeight}
+            />
+            <Image
+              image={pipeBottom}
+              y={bottomPipeY}
+              x={pipeX}
+              width={pipeWidth}
+              height={pipeHeight}
+            />
 
-          {/* Base */}
-          <Image
-            image={base}
-            width={width}
-            height={150}
-            y={height - 75}
-            x={0}
-            fit={'cover'}
-          />
+            {/* Base */}
+            <Image
+              image={base}
+              width={width}
+              height={baseHeight}
+              y={height - baseHeight / 2}
+              x={0}
+              fit={'cover'}
+            />
 
-          {/* Bird */}
-          <Group transform={birdTransform} origin={birdOrigin}>
-            <Image image={bird} y={birdY} x={birdX} width={64} height={48} />
-          </Group>
+            {/* Bird */}
+            <Group transform={birdTransform} origin={birdOrigin}>
+              <Image image={bird} y={birdY} x={birdX} width={64} height={48} />
+            </Group>
 
-          {/* Sim */}
+          </Canvas>
+          {gameState === 'playing' ? (
+            <View style={styles.hud} pointerEvents="none">
+              <RNText style={styles.hudScore}>{score}</RNText>
+              <RNText style={styles.hudBest}>Лучший: {highScore}</RNText>
+            </View>
+          ) : null}
 
-          {/* Score */}
-          <Text
-            x={width / 2 - 30}
-            y={100}
-            text={score.toString()}
-            font={font}
-          />
-        </Canvas>
+          {gameState === 'menu' ? (
+            <View style={styles.overlay}>
+              <RNText style={styles.title}>Fluffy Bread</RNText>
+              <RNText style={styles.subtitle}>Тапните хлеб, чтобы взлететь</RNText>
+              <RNText style={styles.tip}>Сфокусируйтесь на ритме труб, чтобы лететь дальше.</RNText>
+              {resourceError ? (
+                <RNText style={styles.tip}>Оффлайн режим: {resourceError}</RNText>
+              ) : null}
+              <TouchableOpacity style={styles.primaryButton} onPress={startRun}>
+                <RNText style={styles.primaryButtonText}>Начать игру</RNText>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
+          {gameState === 'gameover' ? (
+            <View style={styles.overlay}>
+              <RNText style={styles.title}>Game Over</RNText>
+              <RNText style={styles.subtitle}>Score: {score}</RNText>
+              <RNText style={styles.subtitle}>Best: {highScore}</RNText>
+              <RNText style={styles.tip}>Совет: сфокусируйтесь на ритме труб.</RNText>
+              <View style={styles.actions}>
+                <TouchableOpacity style={styles.primaryButton} onPress={startRun}>
+                  <RNText style={styles.primaryButtonText}>Сыграть ещё</RNText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={returnToMenu}
+                >
+                  <RNText style={styles.secondaryButtonText}>Меню</RNText>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : null}
+        </View>
       </GestureDetector>
     </GestureHandlerRootView>
   );
 };
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  canvas: {
+    flex: 1,
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    gap: 12,
+  },
+  title: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: '#fff4dc',
+    textShadowColor: '#3d2c1f',
+    textShadowRadius: 8,
+  },
+  subtitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#ffe4ad',
+  },
+  tip: {
+    fontSize: 16,
+    color: '#fff4dc',
+    textAlign: 'center',
+  },
+  primaryButton: {
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 18,
+    backgroundColor: '#f1c27d',
+  },
+  primaryButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#3d2c1f',
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  secondaryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 244, 220, 0.7)',
+  },
+  secondaryButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#3d2c1f',
+  },
+  hud: {
+    position: 'absolute',
+    top: 60,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    gap: 4,
+  },
+  hudScore: {
+    fontSize: 48,
+    fontWeight: '800',
+    color: '#fff4dc',
+    textShadowColor: '#3d2c1f',
+    textShadowRadius: 6,
+  },
+  hudBest: {
+    fontSize: 16,
+    color: '#ffe4ad',
+  },
+});
 export default App;
