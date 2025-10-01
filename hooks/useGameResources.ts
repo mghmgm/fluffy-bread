@@ -26,24 +26,17 @@ export const useGameResources = (): UseGameResourcesReturn => {
   const [loadingResources, setLoading] = useState<boolean>(true);
   const [resourceError, setResourceError] = useState<string | null>(null);
 
-  // Hydrate configuration and high score from remote API and local storage.
+  // Гидрируем конфиг и лучший результат из локального оффлайн-API.
   const hydrate = useCallback(async () => {
     setLoading(true);
-    try {
-      const [remoteConfig, storedHighScore] = await Promise.all([
-        fetchGameConfig(),
-        loadHighScore(),
-      ]);
-      setConfig(remoteConfig);
-      setHighScore(storedHighScore);
-      setResourceError(null);
-    } catch (error) {
-      setResourceError(
-        error instanceof Error ? error.message : 'Failed to hydrate resources'
-      );
-    } finally {
-      setLoading(false);
-    }
+    const [remoteConfig, storedHighScore] = await Promise.all([
+      fetchGameConfig(),
+      loadHighScore(),
+    ]);
+    setConfig(remoteConfig);
+    setHighScore(storedHighScore);
+    setResourceError(null);
+    setLoading(false);
   }, []);
 
   useEffect(() => {

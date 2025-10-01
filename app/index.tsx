@@ -1,8 +1,8 @@
 import { Canvas, Group, Image, useImage } from '@shopify/react-native-skia';
 import { useCallback, useEffect, useState } from 'react';
 import {
-  StyleSheet,
   Text as RNText,
+  StyleSheet,
   TouchableOpacity,
   View,
   useWindowDimensions,
@@ -26,7 +26,10 @@ import {
   withTiming
 } from 'react-native-reanimated';
 
+import { useAchievements } from '../hooks/useAchievements';
 import { useGameResources } from '../hooks/useGameResources';
+import { useSkins } from '../hooks/useSkins';
+import { appendRun, type SkinId } from '../services/gameApi';
 
 const DEFAULT_GRAVITY = 1000;
 const DEFAULT_JUMP_FORCE = -500;
@@ -44,12 +47,15 @@ const App = () => {
     resourceError,
     updateHighScore,
   } = useGameResources();
-  const [gameState, setGameState] = useState<'menu' | 'playing' | 'gameover'>(
+  const [gameState, setGameState] = useState<'menu' | 'playing' | 'gameover' | 'skins' | 'achievements'>(
     'menu'
   );
+  const { ownedSkins, activeSkin, setActiveSkin, refreshOwned } = useSkins();
+  const { state: achievementsState, recentUnlocks, evaluateAfterRun } = useAchievements();
 
   const bg = useImage(require('../assets/sprites/background-day.png'));
-  const bird = useImage(require('../assets/sprites/Item_Bread1.png'));
+  const birdDefault = useImage(require('../assets/sprites/Item_Bread1.png'));
+  const birdAlt = useImage(require('../assets/sprites/Item_Bread.png'));
   const pipeBottom = useImage(require('../assets/sprites/pipe-green.png'));
   const pipeTop = useImage(require('../assets/sprites/pipe-green-top.png'));
   const base = useImage(require('../assets/sprites/base.png'));
@@ -151,6 +157,8 @@ const App = () => {
     setGameState('gameover');
   }, [isPlaying]);
 
+  // Инициализация через хуки — ничего лишнего
+
   useEffect(() => {
     gravity.value = config.gravity;
     jumpForce.value = config.jumpForce;
@@ -180,13 +188,11 @@ const App = () => {
     }
   }, [highScore, score, updateHighScore]);
 
-  // Scoring system
   useAnimatedReaction(
     () => pipeX.value,
     (currentValue, previousValue) => {
       const middle = birdX;
 
-      // change offset for the position of the next gap
       if (previousValue && currentValue < -100 && previousValue > -100) {
         const maxOffset = (height - baseHeight - pipeGap.value) / 2;
         const randomOffset =
@@ -202,14 +208,13 @@ const App = () => {
         currentValue <= middle &&
         previousValue > middle
       ) {
-        // do something ✨
         scoreValue.value = scoreValue.value + 1;
         runOnJS(incrementScore)();
       }
     }
   );
 
-  const isPointCollidingWithRect = (point, rect) => {
+  const isPointCollidingWithRect = (point: { x: number; y: number }, rect: { x: number; y: number; w: number; h: number }) => {
     'worklet';
     return (
       point.x >= rect.x && // right of the left edge AND
@@ -219,7 +224,6 @@ const App = () => {
     );
   };
 
-  // Collision detection
   useAnimatedReaction(
     () => birdY.value,
     (currentValue, previousValue) => {
@@ -228,7 +232,6 @@ const App = () => {
         y: birdY.value + 24,
       };
 
-      // Ground collision detection
       if (currentValue > height - baseHeight || currentValue < 0) {
         gameOver.value = true;
       }
@@ -251,6 +254,25 @@ const App = () => {
       }
     }
   );
+
+  // Выполняем пост-обработку забега в обычном JS-потоке
+  useEffect(() => {
+    if (gameState !== 'gameover') return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await appendRun({ score, createdAt: Date.now() });
+        const res = await evaluateAfterRun(score);
+        if (cancelled) return;
+        if (res.skins.length > 0) {
+          await refreshOwned();
+        }
+      } catch {
+        // ignore
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [gameState, score, evaluateAfterRun, refreshOwned]);
 
   useFrameCallback(({ timeSincePreviousFrame: dt }) => {
     if (!dt || !isPlaying.value || gameOver.value) {
@@ -290,10 +312,10 @@ const App = () => {
       <GestureDetector gesture={gesture}>
         <View style={styles.root}>
           <Canvas style={[styles.canvas, { width, height }]}>
-            {/* BG */}
+            {/* Фон */}
             <Image image={bg} width={width} height={height} fit={'cover'} />
 
-            {/* Pipes */}
+            {/* Трубы */}
             <Image
               image={pipeTop}
               y={topPipeY}
@@ -309,7 +331,7 @@ const App = () => {
               height={pipeHeight}
             />
 
-            {/* Base */}
+            {/* Пол */}
             <Image
               image={base}
               width={width}
@@ -319,9 +341,9 @@ const App = () => {
               fit={'cover'}
             />
 
-            {/* Bird */}
+            {/* Птица (хлеб) */}
             <Group transform={birdTransform} origin={birdOrigin}>
-              <Image image={bird} y={birdY} x={birdX} width={64} height={48} />
+              <Image image={activeSkin === 'bread_alt' ? birdAlt : birdDefault} y={birdY} x={birdX} width={64} height={48} />
             </Group>
 
           </Canvas>
@@ -340,18 +362,36 @@ const App = () => {
               {resourceError ? (
                 <RNText style={styles.tip}>Оффлайн режим: {resourceError}</RNText>
               ) : null}
-              <TouchableOpacity style={styles.primaryButton} onPress={startRun}>
-                <RNText style={styles.primaryButtonText}>Начать игру</RNText>
-              </TouchableOpacity>
+              <View style={styles.actionsColumn}>
+                <TouchableOpacity style={styles.primaryButton} onPress={startRun}>
+                  <RNText style={styles.primaryButtonText}>Играть</RNText>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.secondaryButton} onPress={() => setGameState('skins')}>
+                  <RNText style={styles.secondaryButtonText}>Скины</RNText>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.secondaryButton} onPress={() => setGameState('achievements')}>
+                  <RNText style={styles.secondaryButtonText}>Достижения</RNText>
+                </TouchableOpacity>
+              </View>
             </View>
           ) : null}
 
           {gameState === 'gameover' ? (
             <View style={styles.overlay}>
-              <RNText style={styles.title}>Game Over</RNText>
-              <RNText style={styles.subtitle}>Score: {score}</RNText>
-              <RNText style={styles.subtitle}>Best: {highScore}</RNText>
+              <RNText style={styles.title}>Конец игры</RNText>
+              <RNText style={styles.subtitle}>Счёт: {score}</RNText>
+              <RNText style={styles.subtitle}>Рекорд: {highScore}</RNText>
               <RNText style={styles.tip}>Совет: сфокусируйтесь на ритме труб.</RNText>
+              {recentUnlocks.ach.length > 0 || recentUnlocks.skins.length > 0 ? (
+                <View style={{ alignItems: 'center', gap: 6 }}>
+                  {recentUnlocks.ach.length > 0 ? (
+                    <RNText style={styles.tip}>Новые достижения: {recentUnlocks.ach.join(', ')}</RNText>
+                  ) : null}
+                  {recentUnlocks.skins.length > 0 ? (
+                    <RNText style={styles.tip}>Новые скины: {recentUnlocks.skins.join(', ')}</RNText>
+                  ) : null}
+                </View>
+              ) : null}
               <View style={styles.actions}>
                 <TouchableOpacity style={styles.primaryButton} onPress={startRun}>
                   <RNText style={styles.primaryButtonText}>Сыграть ещё</RNText>
@@ -363,6 +403,59 @@ const App = () => {
                   <RNText style={styles.secondaryButtonText}>Меню</RNText>
                 </TouchableOpacity>
               </View>
+            </View>
+          ) : null}
+
+          {gameState === 'skins' ? (
+            <View style={styles.overlay}>
+              <RNText style={styles.title}>Скины</RNText>
+              <RNText style={styles.tip}>Выберите внешний вид хлебушка</RNText>
+              <View style={styles.skinsGrid}>
+                {(ownedSkins.length > 0 ? ownedSkins : (['bread_default'] as SkinId[])).map((id) => (
+                  <TouchableOpacity key={id} style={[styles.skinCard, activeSkin === id ? styles.skinCardActive : null]} onPress={() => setActiveSkin(id)}>
+                    <Canvas style={{ width: 96, height: 72 }}>
+                      <Image
+                        image={id === 'bread_alt' ? birdAlt : birdDefault}
+                        x={16}
+                        y={12}
+                        width={64}
+                        height={48}
+                      />
+                    </Canvas>
+                    <RNText style={styles.skinLabel}>{id}</RNText>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TouchableOpacity style={styles.secondaryButton} onPress={() => setGameState('menu')}>
+                <RNText style={styles.secondaryButtonText}>Назад</RNText>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
+          {gameState === 'achievements' ? (
+            <View style={styles.overlay}>
+              <RNText style={styles.title}>Достижения</RNText>
+              <View style={styles.achList}>
+                {[
+                  { id: 'first_blood', name: 'Первый шаг', desc: 'Наберите 1 очко' },
+                  { id: 'five_club', name: 'Клуб пяти', desc: 'Наберите 5 очков' },
+                  { id: 'ten_club', name: 'Десятка', desc: 'Наберите 10 очков' },
+                  { id: 'marathon_50', name: 'Марафонец', desc: 'Наберите 50 очков' },
+                  { id: 'collector_3', name: 'Коллекционер', desc: 'Владейте 3 скинами' },
+                ].map((a) => {
+                  const st = achievementsState[a.id] || { unlocked: false };
+                  return (
+                    <View key={a.id} style={[styles.achItem, st.unlocked ? styles.achItemUnlocked : null]}>
+                      <RNText style={styles.achName}>{a.name}</RNText>
+                      <RNText style={styles.achDesc}>{a.desc}</RNText>
+                      <RNText style={styles.achStatus}>{st.unlocked ? 'Открыто' : 'Закрыто'}</RNText>
+                    </View>
+                  );
+                })}
+              </View>
+              <TouchableOpacity style={styles.secondaryButton} onPress={() => setGameState('menu')}>
+                <RNText style={styles.secondaryButtonText}>Назад</RNText>
+              </TouchableOpacity>
             </View>
           ) : null}
         </View>
@@ -389,6 +482,70 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
     gap: 12,
+  },
+  actionsColumn: {
+    gap: 10,
+    alignItems: 'center',
+  },
+  skinRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  skinPicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  skinsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'center',
+  },
+  skinCard: {
+    width: 120,
+    height: 120,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 244, 220, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
+  },
+  skinCardActive: {
+    backgroundColor: 'rgba(241, 194, 125, 0.8)',
+  },
+  skinLabel: {
+    marginTop: 4,
+    color: '#3d2c1f',
+    fontWeight: '600',
+  },
+  achList: {
+    width: '100%',
+    maxWidth: 420,
+    gap: 8,
+  },
+  achItem: {
+    backgroundColor: 'rgba(255, 244, 220, 0.6)',
+    borderRadius: 12,
+    padding: 12,
+  },
+  achItemUnlocked: {
+    backgroundColor: 'rgba(188, 230, 192, 0.7)',
+  },
+  achName: {
+    color: '#3d2c1f',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  achDesc: {
+    color: '#3d2c1f',
+    opacity: 0.9,
+  },
+  achStatus: {
+    marginTop: 4,
+    color: '#3d2c1f',
+    fontWeight: '600',
   },
   title: {
     fontSize: 36,
