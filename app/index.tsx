@@ -29,7 +29,8 @@ import {
 import { useAchievements } from '../hooks/useAchievements';
 import { useGameResources } from '../hooks/useGameResources';
 import { useSkins } from '../hooks/useSkins';
-import { appendRun, type SkinId } from '../services/gameApi';
+import { appendRun, getSelectedSkin, type SkinId } from '../services/gameApi';
+import { useRouter } from 'expo-router';
 
 const DEFAULT_GRAVITY = 1000;
 const DEFAULT_JUMP_FORCE = -500;
@@ -39,6 +40,7 @@ const pipeHeight = 640;
 const baseHeight = 150;
 
 const App = () => {
+  const router = useRouter();
   const { width, height } = useWindowDimensions();
   const [score, setScore] = useState(0);
   const {
@@ -274,6 +276,8 @@ const App = () => {
     return () => { cancelled = true; };
   }, [gameState, score, evaluateAfterRun, refreshOwned]);
 
+  
+
   useFrameCallback(({ timeSincePreviousFrame: dt }) => {
     if (!dt || !isPlaying.value || gameOver.value) {
       return;
@@ -366,10 +370,10 @@ const App = () => {
                 <TouchableOpacity style={styles.primaryButton} onPress={startRun}>
                   <RNText style={styles.primaryButtonText}>Играть</RNText>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.secondaryButton} onPress={() => setGameState('skins')}>
+                <TouchableOpacity style={styles.secondaryButton} onPress={() => router.push('/skins')}>
                   <RNText style={styles.secondaryButtonText}>Скины</RNText>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.secondaryButton} onPress={() => setGameState('achievements')}>
+                <TouchableOpacity style={styles.secondaryButton} onPress={() => router.push('/achievements')}>
                   <RNText style={styles.secondaryButtonText}>Достижения</RNText>
                 </TouchableOpacity>
               </View>
@@ -405,59 +409,6 @@ const App = () => {
               </View>
             </View>
           ) : null}
-
-          {gameState === 'skins' ? (
-            <View style={styles.overlay}>
-              <RNText style={styles.title}>Скины</RNText>
-              <RNText style={styles.tip}>Выберите внешний вид хлебушка</RNText>
-              <View style={styles.skinsGrid}>
-                {(ownedSkins.length > 0 ? ownedSkins : (['bread_default'] as SkinId[])).map((id) => (
-                  <TouchableOpacity key={id} style={[styles.skinCard, activeSkin === id ? styles.skinCardActive : null]} onPress={() => setActiveSkin(id)}>
-                    <Canvas style={{ width: 96, height: 72 }}>
-                      <Image
-                        image={id === 'bread_alt' ? birdAlt : birdDefault}
-                        x={16}
-                        y={12}
-                        width={64}
-                        height={48}
-                      />
-                    </Canvas>
-                    <RNText style={styles.skinLabel}>{id}</RNText>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <TouchableOpacity style={styles.secondaryButton} onPress={() => setGameState('menu')}>
-                <RNText style={styles.secondaryButtonText}>Назад</RNText>
-              </TouchableOpacity>
-            </View>
-          ) : null}
-
-          {gameState === 'achievements' ? (
-            <View style={styles.overlay}>
-              <RNText style={styles.title}>Достижения</RNText>
-              <View style={styles.achList}>
-                {[
-                  { id: 'first_blood', name: 'Первый шаг', desc: 'Наберите 1 очко' },
-                  { id: 'five_club', name: 'Клуб пяти', desc: 'Наберите 5 очков' },
-                  { id: 'ten_club', name: 'Десятка', desc: 'Наберите 10 очков' },
-                  { id: 'marathon_50', name: 'Марафонец', desc: 'Наберите 50 очков' },
-                  { id: 'collector_3', name: 'Коллекционер', desc: 'Владейте 3 скинами' },
-                ].map((a) => {
-                  const st = achievementsState[a.id] || { unlocked: false };
-                  return (
-                    <View key={a.id} style={[styles.achItem, st.unlocked ? styles.achItemUnlocked : null]}>
-                      <RNText style={styles.achName}>{a.name}</RNText>
-                      <RNText style={styles.achDesc}>{a.desc}</RNText>
-                      <RNText style={styles.achStatus}>{st.unlocked ? 'Открыто' : 'Закрыто'}</RNText>
-                    </View>
-                  );
-                })}
-              </View>
-              <TouchableOpacity style={styles.secondaryButton} onPress={() => setGameState('menu')}>
-                <RNText style={styles.secondaryButtonText}>Назад</RNText>
-              </TouchableOpacity>
-            </View>
-          ) : null}
         </View>
       </GestureDetector>
     </GestureHandlerRootView>
@@ -486,39 +437,6 @@ const styles = StyleSheet.create({
   actionsColumn: {
     gap: 10,
     alignItems: 'center',
-  },
-  skinRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  skinPicker: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  skinsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    justifyContent: 'center',
-  },
-  skinCard: {
-    width: 120,
-    height: 120,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 244, 220, 0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 8,
-  },
-  skinCardActive: {
-    backgroundColor: 'rgba(241, 194, 125, 0.8)',
-  },
-  skinLabel: {
-    marginTop: 4,
-    color: '#3d2c1f',
-    fontWeight: '600',
   },
   achList: {
     width: '100%',
