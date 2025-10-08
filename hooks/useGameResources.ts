@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-
+import { Platform } from 'react-native';
 import { fetchGameConfig, RemoteGameConfig } from '../services/gameApi';
 import { loadHighScore, persistHighScore } from '../services/storage';
 
@@ -12,13 +12,33 @@ type UseGameResourcesReturn = {
   refreshResources: () => Promise<void>;
 };
 
-const INITIAL_STATE: RemoteGameConfig = {
-  gravity: 1000,
-  jumpForce: -500,
-  pipeGap: 200,
-  speedMultiplier: 1,
-  tip: 'Stay focused on the rhythm of the pipes to fly further.'
-};
+/* 
+
+*/
+
+const INITIAL_STATE: RemoteGameConfig = Platform.select({
+  ios: {
+    gravity: 950,
+    jumpForce: -520,
+    pipeGap: 200,
+    speedMultiplier: 1,
+    tip: 'Тапните по экрану, чтобы хлеб взлетел 🍞',
+  },
+  android: {
+    gravity: 1050,
+    jumpForce: -480,
+    pipeGap: 200,
+    speedMultiplier: 1, 
+    tip: 'Коснитесь экрана, чтобы прыгнуть 🪽',
+  },
+  default: {
+    gravity: 1050,
+    jumpForce: -480,
+    pipeGap: 200,
+    speedMultiplier: 1, 
+    tip: 'Коснитесь экрана, чтобы прыгнуть 🪽',
+  }
+})!;
 
 export const useGameResources = (): UseGameResourcesReturn => {
   const [config, setConfig] = useState<RemoteGameConfig>(INITIAL_STATE);

@@ -362,7 +362,7 @@ const App = () => {
             <View style={styles.overlay}>
               <RNText style={styles.title}>Fluffy Bread</RNText>
               <RNText style={styles.subtitle}>Тапните хлеб, чтобы взлететь</RNText>
-              <RNText style={styles.tip}>Сфокусируйтесь на ритме труб, чтобы лететь дальше.</RNText>
+              <RNText style={styles.tip}>{config.tip}</RNText>
               {resourceError ? (
                 <RNText style={styles.tip}>Оффлайн режим: {resourceError}</RNText>
               ) : null}
@@ -385,7 +385,7 @@ const App = () => {
               <RNText style={styles.title}>Конец игры</RNText>
               <RNText style={styles.subtitle}>Счёт: {score}</RNText>
               <RNText style={styles.subtitle}>Рекорд: {highScore}</RNText>
-              <RNText style={styles.tip}>Совет: сфокусируйтесь на ритме труб.</RNText>
+              <RNText style={styles.tip}>{config.tip}</RNText>
               {recentUnlocks.ach.length > 0 || recentUnlocks.skins.length > 0 ? (
                 <View style={{ alignItems: 'center', gap: 6 }}>
                   {recentUnlocks.ach.length > 0 ? (
