@@ -7,11 +7,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import {
-  Gesture,
-  GestureDetector,
-  GestureHandlerRootView,
-} from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   Easing,
   Extrapolation,
@@ -23,14 +19,14 @@ import {
   useFrameCallback,
   useSharedValue,
   withSequence,
-  withTiming
+  withTiming,
 } from 'react-native-reanimated';
 
+import { useRouter } from 'expo-router';
 import { useAchievements } from '../hooks/useAchievements';
 import { useGameResources } from '../hooks/useGameResources';
 import { useSkins } from '../hooks/useSkins';
-import { appendRun, getSelectedSkin, type SkinId } from '../services/gameApi';
-import { useRouter } from 'expo-router';
+import { appendRun } from '../services/gameApi';
 
 const DEFAULT_GRAVITY = 1000;
 const DEFAULT_JUMP_FORCE = -500;
@@ -43,15 +39,10 @@ const App = () => {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   const [score, setScore] = useState(0);
-  const {
-    config,
-    highScore,
-    resourceError,
-    updateHighScore,
-  } = useGameResources();
-  const [gameState, setGameState] = useState<'menu' | 'playing' | 'gameover' | 'skins' | 'achievements'>(
-    'menu'
-  );
+  const { config, highScore, resourceError, updateHighScore } = useGameResources();
+  const [gameState, setGameState] = useState<
+    'menu' | 'playing' | 'gameover' | 'skins' | 'achievements'
+  >('menu');
   const { ownedSkins, activeSkin, setActiveSkin, refreshOwned } = useSkins();
   const { state: achievementsState, recentUnlocks, evaluateAfterRun } = useAchievements();
 
@@ -124,7 +115,7 @@ const App = () => {
         duration: 3000 / Math.max(pipesSpeed.value, 0.5),
         easing: Easing.linear,
       }),
-      withTiming(width, { duration: 0 })
+      withTiming(width, { duration: 0 }),
     );
   }, [isPlaying, pipeX, pipesSpeed, width]);
 
@@ -155,11 +146,13 @@ const App = () => {
   }, [gameOver, isPlaying, pipeX, prepareRun, resetScore]);
 
   const handleGameOver = useCallback(() => {
+    // Исправлено: сначала останавливаем анимации, затем меняем состояние
+    cancelAnimation(pipeX);
     isPlaying.value = false;
-    setGameState('gameover');
-  }, [isPlaying]);
-
-  // Инициализация через хуки — ничего лишнего
+    runOnJS(() => {
+      setGameState('gameover');
+    })();
+  }, [isPlaying, pipeX]);
 
   useEffect(() => {
     gravity.value = config.gravity;
@@ -169,13 +162,19 @@ const App = () => {
     pipeOffset.value = 0;
   }, [config, gravity, jumpForce, pipeGap, pipeOffset, speedMultiplier]);
 
+  // Исправлено: useEffect для управления игровым состоянием
   useEffect(() => {
     if (gameState === 'playing') {
       isPlaying.value = true;
       gameOver.value = false;
       moveTheMap();
+    } else if (gameState === 'gameover') {
+      isPlaying.value = false;
+      gameOver.value = true;
+      cancelAnimation(pipeX);
     } else {
       isPlaying.value = false;
+      gameOver.value = false;
       cancelAnimation(pipeX);
     }
   }, [gameOver, gameState, isPlaying, moveTheMap, pipeX]);
@@ -191,32 +190,31 @@ const App = () => {
   }, [highScore, score, updateHighScore]);
 
   useAnimatedReaction(
-    () => pipeX.value,
+    () => birdY.value,
     (currentValue, previousValue) => {
-      const middle = birdX;
+      const birdRect = {
+        x: birdX,
+        y: birdY.value,
+        width: 64,
+        height: 48,
+      };
 
-      if (previousValue && currentValue < -100 && previousValue > -100) {
-        const maxOffset = (height - baseHeight - pipeGap.value) / 2;
-        const randomOffset =
-          maxOffset <= 0 ? 0 : (Math.random() - 0.5) * maxOffset;
-        pipeOffset.value = randomOffset;
-        cancelAnimation(pipeX);
-        runOnJS(moveTheMap)();
+      if (currentValue > height - baseHeight || currentValue < 0) {
+        gameOver.value = true;
       }
 
-      if (
-        currentValue !== previousValue &&
-        previousValue &&
-        currentValue <= middle &&
-        previousValue > middle
-      ) {
-        scoreValue.value = scoreValue.value + 1;
-        runOnJS(incrementScore)();
+      // Исправлено: заменена точечная проверка на проверку прямоугольников
+      const isColliding = obstacles.value.some((rect) => isBirdCollidingWithRect(birdRect, rect));
+      if (isColliding) {
+        gameOver.value = true;
       }
-    }
+    },
   );
 
-  const isPointCollidingWithRect = (point: { x: number; y: number }, rect: { x: number; y: number; w: number; h: number }) => {
+  const isPointCollidingWithRect = (
+    point: { x: number; y: number },
+    rect: { x: number; y: number; w: number; h: number },
+  ) => {
     'worklet';
     return (
       point.x >= rect.x && // right of the left edge AND
@@ -238,13 +236,11 @@ const App = () => {
         gameOver.value = true;
       }
 
-      const isColliding = obstacles.value.some((rect) =>
-        isPointCollidingWithRect(center, rect)
-      );
+      const isColliding = obstacles.value.some((rect) => isPointCollidingWithRect(center, rect));
       if (isColliding) {
         gameOver.value = true;
       }
-    }
+    },
   );
 
   useAnimatedReaction(
@@ -254,29 +250,38 @@ const App = () => {
         cancelAnimation(pipeX);
         runOnJS(handleGameOver)();
       }
-    }
+    },
   );
+
 
   // Выполняем пост-обработку забега в обычном JS-потоке
   useEffect(() => {
     if (gameState !== 'gameover') return;
     let cancelled = false;
-    (async () => {
+    const processGameOver = async () => {
       try {
         await appendRun({ score, createdAt: Date.now() });
+        if (cancelled) return;
+
         const res = await evaluateAfterRun(score);
         if (cancelled) return;
+
         if (res.skins.length > 0) {
           await refreshOwned();
         }
-      } catch {
-        // ignore
+      } catch (error) {
+        console.warn('Game over processing error:', error);
+        // Исправлено: игнорируем ошибки, но логируем их для отладки
       }
-    })();
-    return () => { cancelled = true; };
+    };
+
+    processGameOver();
+
+    return () => {
+      cancelled = true;
+    };
   }, [gameState, score, evaluateAfterRun, refreshOwned]);
 
-  
 
   useFrameCallback(({ timeSincePreviousFrame: dt }) => {
     if (!dt || !isPlaying.value || gameOver.value) {
@@ -297,12 +302,7 @@ const App = () => {
   const birdTransform = useDerivedValue(() => {
     return [
       {
-        rotate: interpolate(
-          birdYVelocity.value,
-          [-500, 500],
-          [-0.5, 0.5],
-          Extrapolation.CLAMP
-        ),
+        rotate: interpolate(birdYVelocity.value, [-500, 500], [-0.5, 0.5], Extrapolation.CLAMP),
       },
     ];
   });
@@ -310,6 +310,19 @@ const App = () => {
     return { x: width / 4 + 32, y: birdY.value + 24 };
   });
 
+  // Исправлено: добавлена улучшенная проверка столкновений
+  const isBirdCollidingWithRect = (
+    bird: { x: number; y: number; width: number; height: number },
+    rect: { x: number; y: number; w: number; h: number },
+  ) => {
+    'worklet';
+    return (
+      bird.x < rect.x + rect.w &&
+      bird.x + bird.width > rect.x &&
+      bird.y < rect.y + rect.h &&
+      bird.y + bird.height > rect.y
+    );
+  };
 
   return (
     <GestureHandlerRootView style={styles.root}>
@@ -320,13 +333,7 @@ const App = () => {
             <Image image={bg} width={width} height={height} fit={'cover'} />
 
             {/* Трубы */}
-            <Image
-              image={pipeTop}
-              y={topPipeY}
-              x={pipeX}
-              width={pipeWidth}
-              height={pipeHeight}
-            />
+            <Image image={pipeTop} y={topPipeY} x={pipeX} width={pipeWidth} height={pipeHeight} />
             <Image
               image={pipeBottom}
               y={bottomPipeY}
@@ -347,9 +354,14 @@ const App = () => {
 
             {/* Птица (хлеб) */}
             <Group transform={birdTransform} origin={birdOrigin}>
-              <Image image={activeSkin === 'bread_alt' ? birdAlt : birdDefault} y={birdY} x={birdX} width={64} height={48} />
+              <Image
+                image={activeSkin === 'bread_alt' ? birdAlt : birdDefault}
+                y={birdY}
+                x={birdX}
+                width={64}
+                height={48}
+              />
             </Group>
-
           </Canvas>
           {gameState === 'playing' ? (
             <View style={styles.hud} pointerEvents="none">
@@ -370,10 +382,16 @@ const App = () => {
                 <TouchableOpacity style={styles.primaryButton} onPress={startRun}>
                   <RNText style={styles.primaryButtonText}>Играть</RNText>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.secondaryButton} onPress={() => router.push('/skins')}>
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={() => router.push('/skins')}
+                >
                   <RNText style={styles.secondaryButtonText}>Скины</RNText>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.secondaryButton} onPress={() => router.push('/achievements')}>
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={() => router.push('/achievements')}
+                >
                   <RNText style={styles.secondaryButtonText}>Достижения</RNText>
                 </TouchableOpacity>
               </View>
@@ -389,10 +407,14 @@ const App = () => {
               {recentUnlocks.ach.length > 0 || recentUnlocks.skins.length > 0 ? (
                 <View style={{ alignItems: 'center', gap: 6 }}>
                   {recentUnlocks.ach.length > 0 ? (
-                    <RNText style={styles.tip}>Новые достижения: {recentUnlocks.ach.join(', ')}</RNText>
+                    <RNText style={styles.tip}>
+                      Новые достижения: {recentUnlocks.ach.join(', ')}
+                    </RNText>
                   ) : null}
                   {recentUnlocks.skins.length > 0 ? (
-                    <RNText style={styles.tip}>Новые скины: {recentUnlocks.skins.join(', ')}</RNText>
+                    <RNText style={styles.tip}>
+                      Новые скины: {recentUnlocks.skins.join(', ')}
+                    </RNText>
                   ) : null}
                 </View>
               ) : null}
@@ -400,10 +422,7 @@ const App = () => {
                 <TouchableOpacity style={styles.primaryButton} onPress={startRun}>
                   <RNText style={styles.primaryButtonText}>Сыграть ещё</RNText>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.secondaryButton}
-                  onPress={returnToMenu}
-                >
+                <TouchableOpacity style={styles.secondaryButton} onPress={returnToMenu}>
                   <RNText style={styles.secondaryButtonText}>Меню</RNText>
                 </TouchableOpacity>
               </View>

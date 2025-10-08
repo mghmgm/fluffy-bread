@@ -3,8 +3,8 @@ import { useRouter } from "expo-router";
 import { View, Text as RNText, StyleSheet, TouchableOpacity, useWindowDimensions, ImageBackground } from 'react-native';
 
 
-
-export default function achievements() {
+// Исправлено: название компонента с заглавной
+export default function Achievements() {
     const { state: achievementsState } = useAchievements()
     const { width, height } = useWindowDimensions();
     const router = useRouter()
