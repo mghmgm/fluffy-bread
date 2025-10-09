@@ -80,6 +80,20 @@ const App = () => {
     return interpolate(scoreValue.value, [0, 20], [1, 2]) * speedMultiplier.value;
   });
 
+  // Исправлено: добавлена улучшенная проверка столкновений
+  const isBirdCollidingWithRect = (
+    bird: { x: number; y: number; width: number; height: number },
+    rect: { x: number; y: number; w: number; h: number },
+  ) => {
+    'worklet';
+    return (
+      bird.x < rect.x + rect.w &&
+      bird.x + bird.width > rect.x &&
+      bird.y < rect.y + rect.h &&
+      bird.y + bird.height > rect.y
+    );
+  };
+
   const incrementScore = useCallback(() => {
     setScore((prev) => prev + 1);
   }, []);
@@ -146,7 +160,6 @@ const App = () => {
   }, [gameOver, isPlaying, pipeX, prepareRun, resetScore]);
 
   const handleGameOver = useCallback(() => {
-    // Исправлено: сначала останавливаем анимации, затем меняем состояние
     cancelAnimation(pipeX);
     isPlaying.value = false;
     runOnJS(() => {
@@ -162,7 +175,7 @@ const App = () => {
     pipeOffset.value = 0;
   }, [config, gravity, jumpForce, pipeGap, pipeOffset, speedMultiplier]);
 
-  // Исправлено: useEffect для управления игровым состоянием
+  // КРИТИЧЕСКИ ВАЖНО: Этот useEffect управляет движением труб при смене состояния игры
   useEffect(() => {
     if (gameState === 'playing') {
       isPlaying.value = true;
@@ -189,6 +202,36 @@ const App = () => {
     }
   }, [highScore, score, updateHighScore]);
 
+  // ВАЖНО: Этот useAnimatedReaction из старой версии отвечает за респавн труб и подсчет очков
+  useAnimatedReaction(
+    () => pipeX.value,
+    (currentValue, previousValue) => {
+      const middle = birdX;
+
+      // Респавн труб когда они уходят за экран
+      if (previousValue && currentValue < -100 && previousValue > -100) {
+        const maxOffset = (height - baseHeight - pipeGap.value) / 2;
+        const randomOffset =
+          maxOffset <= 0 ? 0 : (Math.random() - 0.5) * maxOffset;
+        pipeOffset.value = randomOffset;
+        cancelAnimation(pipeX);
+        runOnJS(moveTheMap)();
+      }
+
+      // Подсчет очков когда птица проходит трубу
+      if (
+        currentValue !== previousValue &&
+        previousValue &&
+        currentValue <= middle &&
+        previousValue > middle
+      ) {
+        scoreValue.value = scoreValue.value + 1;
+        runOnJS(incrementScore)();
+      }
+    }
+  );
+
+  // Исправлено: оставлена только одна проверка столкновений (прямоугольная)
   useAnimatedReaction(
     () => birdY.value,
     (currentValue, previousValue) => {
@@ -199,44 +242,13 @@ const App = () => {
         height: 48,
       };
 
+      // Проверка столкновения с полом или потолком
       if (currentValue > height - baseHeight || currentValue < 0) {
         gameOver.value = true;
       }
 
-      // Исправлено: заменена точечная проверка на проверку прямоугольников
+      // Проверка столкновения с трубами
       const isColliding = obstacles.value.some((rect) => isBirdCollidingWithRect(birdRect, rect));
-      if (isColliding) {
-        gameOver.value = true;
-      }
-    },
-  );
-
-  const isPointCollidingWithRect = (
-    point: { x: number; y: number },
-    rect: { x: number; y: number; w: number; h: number },
-  ) => {
-    'worklet';
-    return (
-      point.x >= rect.x && // right of the left edge AND
-      point.x <= rect.x + rect.w && // left of the right edge AND
-      point.y >= rect.y && // below the top AND
-      point.y <= rect.y + rect.h // above the bottom
-    );
-  };
-
-  useAnimatedReaction(
-    () => birdY.value,
-    (currentValue, previousValue) => {
-      const center = {
-        x: birdX + 32,
-        y: birdY.value + 24,
-      };
-
-      if (currentValue > height - baseHeight || currentValue < 0) {
-        gameOver.value = true;
-      }
-
-      const isColliding = obstacles.value.some((rect) => isPointCollidingWithRect(center, rect));
       if (isColliding) {
         gameOver.value = true;
       }
@@ -252,7 +264,6 @@ const App = () => {
       }
     },
   );
-
 
   // Выполняем пост-обработку забега в обычном JS-потоке
   useEffect(() => {
@@ -271,7 +282,6 @@ const App = () => {
         }
       } catch (error) {
         console.warn('Game over processing error:', error);
-        // Исправлено: игнорируем ошибки, но логируем их для отладки
       }
     };
 
@@ -281,7 +291,6 @@ const App = () => {
       cancelled = true;
     };
   }, [gameState, score, evaluateAfterRun, refreshOwned]);
-
 
   useFrameCallback(({ timeSincePreviousFrame: dt }) => {
     if (!dt || !isPlaying.value || gameOver.value) {
@@ -309,20 +318,6 @@ const App = () => {
   const birdOrigin = useDerivedValue(() => {
     return { x: width / 4 + 32, y: birdY.value + 24 };
   });
-
-  // Исправлено: добавлена улучшенная проверка столкновений
-  const isBirdCollidingWithRect = (
-    bird: { x: number; y: number; width: number; height: number },
-    rect: { x: number; y: number; w: number; h: number },
-  ) => {
-    'worklet';
-    return (
-      bird.x < rect.x + rect.w &&
-      bird.x + bird.width > rect.x &&
-      bird.y < rect.y + rect.h &&
-      bird.y + bird.height > rect.y
-    );
-  };
 
   return (
     <GestureHandlerRootView style={styles.root}>
