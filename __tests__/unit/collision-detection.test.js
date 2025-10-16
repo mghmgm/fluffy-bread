@@ -2,9 +2,9 @@
 const isBirdCollidingWithRect = (bird, rect) => {
   return (
     bird.x < rect.x + rect.w &&
-    bird.x + bird.width > rect.x &&
+    bird.x + bird.width >= rect.x &&
     bird.y < rect.y + rect.h &&
-    bird.y + bird.height > rect.y
+    bird.y + bird.height >= rect.y
   );
 };
 
