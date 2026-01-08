@@ -27,6 +27,7 @@ import { useAchievements } from '../hooks/useAchievements';
 import { useGameResources } from '../hooks/useGameResources';
 import { useSkins } from '../hooks/useSkins';
 import { appendRun } from '../services/gameApi';
+import { playTapSound, initTapSound, disposeTapSound } from '../hooks/useTapSound';
 
 const DEFAULT_GRAVITY = 1000;
 const DEFAULT_JUMP_FORCE = -500;
@@ -52,6 +53,9 @@ const App = () => {
   const pipeBottom = useImage(require('../assets/sprites/pipe-green.png'));
   const pipeTop = useImage(require('../assets/sprites/pipe-green-top.png'));
   const base = useImage(require('../assets/sprites/base.png'));
+
+  const menuClickSound = '../assets/sounds/clickMenuSound.mp3'
+  const onBreadTap = '../assets/sounds/onBreadTap.mp3'
 
   const gravity = useSharedValue(DEFAULT_GRAVITY);
   const jumpForce = useSharedValue(DEFAULT_JUMP_FORCE);
@@ -202,6 +206,12 @@ const App = () => {
     }
   }, [highScore, score, updateHighScore]);
 
+  useEffect(() => {
+    void initTapSound();
+    return () => { void disposeTapSound(); };
+  }, []);
+  
+
   // ВАЖНО: Этот useAnimatedReaction из старой версии отвечает за респавн труб и подсчет очков
   useAnimatedReaction(
     () => pipeX.value,
@@ -305,7 +315,9 @@ const App = () => {
     if (!isPlaying.value || gameOver.value) {
       return;
     }
+
     birdYVelocity.value = jumpForce.value;
+    runOnJS(playTapSound)();
   });
 
   const birdTransform = useDerivedValue(() => {
