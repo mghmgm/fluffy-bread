@@ -1,7 +1,12 @@
 import { useBackgroundMusic } from '@/hooks/useBackgroundMusic';
+import { useEffect } from 'react';
 import { Stack } from 'expo-router';
+import { initDatabase } from './database/Database';
 
 export default function RootLayout() {
+  useEffect(() => {
+      initDatabase();
+  }, []);
 
   useBackgroundMusic();
 
@@ -15,11 +20,11 @@ export default function RootLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name='achievements' options={{
           presentation: 'transparentModal',
-          animation: 'slide_from_right', // Переопределяем анимацию для этого экрана
+          animation: 'slide_from_right',
         }} />
       <Stack.Screen name='skins'options={{
           presentation: 'transparentModal',
-          animation: 'slide_from_right', // Переопределяем анимацию для этого экрана
+          animation: 'slide_from_right',
         }}  />
     </Stack>
   );
