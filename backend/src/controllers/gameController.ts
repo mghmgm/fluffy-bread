@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { db } from '../config/database';
+import pool from '../config/postgres';
 
 export class GameController {
   // MEGA МЕТОД: синхронизация всех данных
@@ -19,54 +19,60 @@ export class GameController {
       } = req.body;
 
       // Получаем данные с сервера
-      const serverHighScore = db.prepare(`
-        SELECT MAX(score) as maxScore FROM game_scores WHERE user_id = ?
-      `).get(userId) as { maxScore: number | null };
+      const serverHighScoreResult = await pool.query(
+        'SELECT MAX(score) as max_score FROM game_scores WHERE user_id = $1',
+        [userId]
+      );
+      const serverHighScore = serverHighScoreResult.rows[0]?.max_score || 0;
 
-      const serverAchievements = db.prepare(`
-        SELECT achievement_id FROM user_achievements WHERE user_id = ?
-      `).all(userId) as Array<{ achievement_id: string }>;
+      const serverAchievementsResult = await pool.query(
+        'SELECT achievement_id FROM user_achievements WHERE user_id = $1',
+        [userId]
+      );
+      const serverAchievements = serverAchievementsResult.rows.map(r => r.achievement_id);
 
-      const serverSkins = db.prepare(`
-        SELECT skin_id FROM user_skins WHERE user_id = ?
-      `).all(userId) as Array<{ skin_id: string }>;
+      const serverSkinsResult = await pool.query(
+        'SELECT skin_id FROM user_skins WHERE user_id = $1',
+        [userId]
+      );
+      const serverSkins = serverSkinsResult.rows.map(r => r.skin_id);
 
       // MERGE логика
       const mergedHighScore = Math.max(
         localHighScore || 0,
-        serverHighScore?.maxScore || 0
+        serverHighScore
       );
 
       const mergedAchievements = Array.from(new Set([
         ...localAchievements,
-        ...serverAchievements.map(a => a.achievement_id)
+        ...serverAchievements
       ]));
 
       const mergedSkins = Array.from(new Set([
         ...localSkins,
-        ...serverSkins.map(s => s.skin_id)
+        ...serverSkins
       ]));
 
       // Сохраняем новые данные на сервер
-      if (localHighScore && localHighScore > (serverHighScore?.maxScore || 0)) {
-        db.prepare(`
-          INSERT INTO game_scores (user_id, score, created_at)
-          VALUES (?, ?, ?)
-        `).run(userId, localHighScore, Date.now());
+      if (localHighScore && localHighScore > serverHighScore) {
+        await pool.query(
+          'INSERT INTO game_scores (user_id, score, created_at) VALUES ($1, $2, $3)',
+          [userId, localHighScore, Date.now()]
+        );
       }
 
       for (const achId of localAchievements) {
-        db.prepare(`
-          INSERT OR IGNORE INTO user_achievements (user_id, achievement_id, unlocked_at)
-          VALUES (?, ?, ?)
-        `).run(userId, achId, Date.now());
+        await pool.query(
+          'INSERT INTO user_achievements (user_id, achievement_id, unlocked_at) VALUES ($1, $2, $3) ON CONFLICT (user_id, achievement_id) DO NOTHING',
+          [userId, achId, Date.now()]
+        );
       }
 
       for (const skinId of localSkins) {
-        db.prepare(`
-          INSERT OR IGNORE INTO user_skins (user_id, skin_id, unlocked_at)
-          VALUES (?, ?, ?)
-        `).run(userId, skinId, Date.now());
+        await pool.query(
+          'INSERT INTO user_skins (user_id, skin_id, unlocked_at) VALUES ($1, $2, $3) ON CONFLICT (user_id, skin_id) DO NOTHING',
+          [userId, skinId, Date.now()]
+        );
       }
 
       // Возвращаем объединенные данные клиенту
