@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'http://172.19.0.1:3000/api';
+
+const API_URL = 'https://fluffy-bread.onrender.com/api';
+
 const TOKEN_KEY = 'fluffy-bread/auth-token';
 
 // Сохранение токена

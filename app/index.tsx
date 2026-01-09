@@ -401,7 +401,7 @@ useFocusEffect(
       user ? (
         <View style={styles.authBlock}>
           <RNText style={styles.welcomeText}>
-            Привет, {user.username}! ☁️
+            Привет, {user?.username || user?.name || 'Гость'}!🍞
           </RNText>
           <TouchableOpacity
             style={styles.logoutButton}

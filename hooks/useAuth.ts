@@ -10,7 +10,9 @@ export const useAuth = () => {
       const token = await getToken();
       if (token) {
         const userData = await api.getMe();
-        setUser(userData);
+        setUser(userData.user); 
+
+
       } else {
         setUser(null);
       }
