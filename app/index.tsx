@@ -1,12 +1,15 @@
 import { Canvas, Group, Image, useImage } from '@shopify/react-native-skia';
 import { useCallback, useEffect, useState } from 'react';
+import { getToken, api } from '../services/apiClient';
 import {
   Text as RNText,
   StyleSheet,
   TouchableOpacity,
   View,
   useWindowDimensions,
+  Alert,
 } from 'react-native';
+
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   Easing,
@@ -25,18 +28,20 @@ import {
 import { useRouter } from 'expo-router';
 import { useAchievements } from '../hooks/useAchievements';
 import { useGameResources } from '../hooks/useGameResources';
+import { useAuth } from '../hooks/useAuth';
 import { useSkins } from '../hooks/useSkins';
 import { appendRun } from '../services/gameApi';
 import { playTapSound, initTapSound, disposeTapSound } from '../hooks/useTapSound';
 
+
 const DEFAULT_GRAVITY = 1000;
 const DEFAULT_JUMP_FORCE = -500;
-
 const pipeWidth = 104;
 const pipeHeight = 640;
 const baseHeight = 150;
 
 const App = () => {
+  const { user, loading: authLoading, refresh: refreshAuth } = useAuth();
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   const [score, setScore] = useState(0);
@@ -385,6 +390,45 @@ const App = () => {
               {resourceError ? (
                 <RNText style={styles.tip}>Оффлайн режим: {resourceError}</RNText>
               ) : null}
+                  {!authLoading && (
+      user ? (
+        <View style={styles.authBlock}>
+          <RNText style={styles.welcomeText}>
+            Привет, {user.username}! ☁️
+          </RNText>
+          <TouchableOpacity
+            style={styles.logoutButton}
+            onPress={async () => {
+              try {
+                await api.logout();
+                refreshAuth();
+                Alert.alert('Выход', 'Вы вышли из аккаунта');
+              } catch (error) {
+                await removeToken();
+                refreshAuth();
+              }
+            }}
+          >
+            <RNText style={styles.logoutButtonText}>Выйти</RNText>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.authButtons}>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => router.push('/login')}
+          >
+            <RNText style={styles.secondaryButtonText}>Войти</RNText>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => router.push('/register')}
+          >
+            <RNText style={styles.secondaryButtonText}>Регистрация</RNText>
+          </TouchableOpacity>
+        </View>
+      )
+    )}
               <View style={styles.actionsColumn}>
                 <TouchableOpacity style={styles.primaryButton} onPress={startRun}>
                   <RNText style={styles.primaryButtonText}>Играть</RNText>
@@ -552,6 +596,42 @@ const styles = StyleSheet.create({
   hudBest: {
     fontSize: 16,
     color: '#ffe4ad',
+  },
+    hudBest: {
+    fontSize: 16,
+    color: '#ffe4ad',
+  },
+  // ========== ДОБАВЬТЕ ЭТО ========== 
+  authBlock: {
+    backgroundColor: 'rgba(255, 244, 220, 0.3)',
+    borderRadius: 16,
+    padding: 16,
+    gap: 8,
+    marginBottom: 12,
+    width: '100%',
+    maxWidth: 300,
+  },
+  welcomeText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff4dc',
+    textAlign: 'center',
+  },
+  logoutButton: {
+    backgroundColor: 'rgba(255, 244, 220, 0.5)',
+    borderRadius: 12,
+    padding: 10,
+  },
+  logoutButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#3d2c1f',
+    textAlign: 'center',
+  },
+  authButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
   },
 });
 export default App;
