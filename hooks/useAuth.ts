@@ -1,20 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getToken, api } from '../services/apiClient';
 
 export const useAuth = () => {
   const [user, setUser] = useState<{ username: string; email: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
       const token = await getToken();
       if (token) {
         const userData = await api.getMe();
         setUser(userData);
+      } else {
+        setUser(null);
       }
     } catch (error) {
       console.log('Не авторизован');
@@ -22,12 +20,16 @@ export const useAuth = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // ✅ Пустой массив зависимостей
 
-  const refresh = () => {
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
+  const refresh = useCallback(() => {
     setLoading(true);
     checkAuth();
-  };
+  }, [checkAuth]); // ✅ Зависит от checkAuth
 
   return { user, loading, refresh };
 };

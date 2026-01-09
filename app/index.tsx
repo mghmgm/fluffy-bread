@@ -1,5 +1,6 @@
 import { Canvas, Group, Image, useImage } from '@shopify/react-native-skia';
 import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { getToken, api } from '../services/apiClient';
 import {
   Text as RNText,
@@ -42,6 +43,12 @@ const baseHeight = 150;
 
 const App = () => {
   const { user, loading: authLoading, refresh: refreshAuth } = useAuth();
+useFocusEffect(
+  useCallback(() => {
+    refreshAuth();
+  }, []) 
+);
+
   const router = useRouter();
   const { width, height } = useWindowDimensions();
   const [score, setScore] = useState(0);

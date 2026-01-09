@@ -28,19 +28,19 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const response = await api.login(email, password);
-      
-      // Синхронизация данных
-      await syncWithServer();
-      
-      Alert.alert('Успех', `Добро пожаловать, ${response.user.username}!`);
-      router.back(); // Возвращаемся в меню
+        const response = await api.register(username, email, password);
+
+        // Синхронизация данных
+        await syncWithServer();
+
+        // ✅ Возвращаемся на главный экран
+        router.replace('/');
     } catch (error: any) {
-      Alert.alert('Ошибка входа', error.message || 'Проверьте email и пароль');
+        Alert.alert('Ошибка регистрации', error.message || 'Попробуйте другой email');
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+    };
 
   return (
     <KeyboardAvoidingView 
