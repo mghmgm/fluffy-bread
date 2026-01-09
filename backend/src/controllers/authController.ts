@@ -1,67 +1,52 @@
 import { Request, Response } from 'express';
 import { User } from '../models/User';
 import { generateToken } from '../utils/tokenUtils';
-import { IAuthResponse, IRegisterRequest, ILoginRequest } from '../types';
 
 export class AuthController {
   // Регистрация
   static async register(req: Request, res: Response): Promise<void> {
     try {
-      const { username, email, password } = req.body as IRegisterRequest;
+      const { username, email, password } = req.body;
 
-      // Валидация
-      if (!username || !email || !password) {
-        res.status(400).json({ error: 'Все поля обязательны' });
+      // Проверка существования пользователя
+      const existingUserByEmail = await User.findByEmail(email);
+      if (existingUserByEmail) {
+        res.status(400).json({ error: 'Email уже используется' });
         return;
       }
 
-      if (password.length < 6) {
-        res.status(400).json({ error: 'Пароль должен быть минимум 6 символов' });
-        return;
-      }
-
-      // Проверка существования
-      const existingUser = User.findByEmail(email);
-      if (existingUser) {
-        res.status(409).json({ error: 'Email уже зарегистрирован' });
-        return;
-      }
-
-      const existingUsername = User.findByUsername(username);
-      if (existingUsername) {
-        res.status(409).json({ error: 'Username уже занят' });
+      const existingUserByUsername = await User.findByUsername(username);
+      if (existingUserByUsername) {
+        res.status(400).json({ error: 'Username уже занят' });
         return;
       }
 
       // Создание пользователя
       const user = await User.create(username, email, password);
-      const token = generateToken({ userId: user.id, email: user.email });
 
-      const response: IAuthResponse = {
+      // Генерация токена
+      const token = generateToken({
+        userId: user.id,
+        email: user.email
+      });
+
+      res.status(201).json({
         user: User.toResponse(user),
-        token,
-      };
-
-      res.status(201).json(response);
+        token
+      });
     } catch (error) {
-      console.error('Ошибка регистрации:', error);
-      res.status(500).json({ error: 'Ошибка сервера' });
+      console.error('Register error:', error);
+      res.status(500).json({ error: 'Ошибка регистрации' });
     }
   }
 
-  // Логин
+  // Вход
   static async login(req: Request, res: Response): Promise<void> {
     try {
-      const { email, password } = req.body as ILoginRequest;
-
-      // Валидация
-      if (!email || !password) {
-        res.status(400).json({ error: 'Email и пароль обязательны' });
-        return;
-      }
+      const { email, password } = req.body;
 
       // Поиск пользователя
-      const user = User.findByEmail(email);
+      const user = await User.findByEmail(email);
       if (!user) {
         res.status(401).json({ error: 'Неверный email или пароль' });
         return;
@@ -75,49 +60,47 @@ export class AuthController {
       }
 
       // Генерация токена
-      const token = generateToken({ userId: user.id, email: user.email });
+      const token = generateToken({
+        userId: user.id,
+        email: user.email
+      });
 
-      const response: IAuthResponse = {
+      res.status(200).json({
         user: User.toResponse(user),
-        token,
-      };
-
-      res.status(200).json(response);
+        token
+      });
     } catch (error) {
-      console.error('Ошибка входа:', error);
-      res.status(500).json({ error: 'Ошибка сервера' });
+      console.error('Login error:', error);
+      res.status(500).json({ error: 'Ошибка входа' });
     }
   }
 
-  // Получение текущего пользователя
+  // Получить текущего пользователя
   static async getMe(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.user?.userId;
-
       if (!userId) {
         res.status(401).json({ error: 'Не авторизован' });
         return;
       }
 
-      const user = User.findById(userId);
+      const user = await User.findById(userId);
       if (!user) {
         res.status(404).json({ error: 'Пользователь не найден' });
         return;
       }
 
-      res.status(200).json(User.toResponse(user));
+      res.status(200).json({
+        user: User.toResponse(user)
+      });
     } catch (error) {
-      console.error('Ошибка получения профиля:', error);
-      res.status(500).json({ error: 'Ошибка сервера' });
-    }
-  }
-  static async logout(req: Request, res: Response): Promise<void> {
-    try {
-      res.status(200).json({ message: 'Успешный выход' });
-    } catch (error) {
-      console.error('Ошибка выхода:', error);
-      res.status(500).json({ error: 'Ошибка сервера' });
+      console.error('GetMe error:', error);
+      res.status(500).json({ error: 'Ошибка получения данных' });
     }
   }
 
+  // Выход (опционально)
+  static async logout(req: Request, res: Response): Promise<void> {
+    res.status(200).json({ message: 'Выход выполнен' });
+  }
 }
