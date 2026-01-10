@@ -13,10 +13,12 @@ dotenv.config();
 const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors({
-  origin: '*',
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: '*',
+    credentials: true,
+  }),
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -37,7 +39,7 @@ const startServer = async () => {
   try {
     await initDatabase();
     console.log('✅ База данных инициализирована');
-    
+
     app.listen(PORT, () => {
       console.log(`🚀 Сервер запущен на http://localhost:${PORT}`);
     });
