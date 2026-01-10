@@ -179,4 +179,18 @@ export const api = {
       body: JSON.stringify(data),
     });
   },
+
+  // === ПРОФИЛЬ ===
+  updateUsername: async (username: string) => {
+    return apiRequest('/auth/update-username', {
+      method: 'PUT',
+      body: JSON.stringify({ username }),
+    });
+  },
+
+  deleteProgress: async () => {
+    return apiRequest('/auth/progress', {
+      method: 'DELETE',
+    });
+  },
 };

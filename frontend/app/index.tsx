@@ -9,6 +9,8 @@ import {
   View,
   useWindowDimensions,
   Alert,
+  Modal,
+  TextInput,
 } from 'react-native';
 
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -34,7 +36,6 @@ import { useSkins } from '../hooks/useSkins';
 import { appendRun } from '../services/gameApi';
 import { playTapSound, initTapSound, disposeTapSound } from '../hooks/useTapSound';
 
-
 const DEFAULT_GRAVITY = 1000;
 const DEFAULT_JUMP_FORCE = -500;
 const pipeWidth = 104;
@@ -43,11 +44,11 @@ const baseHeight = 150;
 
 const App = () => {
   const { user, loading: authLoading, refresh: refreshAuth } = useAuth();
-useFocusEffect(
-  useCallback(() => {
-    refreshAuth();
-  }, []) 
-);
+  useFocusEffect(
+    useCallback(() => {
+      refreshAuth();
+    }, []),
+  );
 
   const router = useRouter();
   const { width, height } = useWindowDimensions();
@@ -59,6 +60,11 @@ useFocusEffect(
   const { ownedSkins, activeSkin, setActiveSkin, refreshOwned } = useSkins();
   const { state: achievementsState, recentUnlocks, evaluateAfterRun } = useAchievements();
 
+  // Profile editor state
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [editUsername, setEditUsername] = useState(user?.username || '');
+  const [updatingUsername, setUpdatingUsername] = useState(false);
+
   const bg = useImage(require('../assets/sprites/background-day.png'));
   const birdDefault = useImage(require('../assets/sprites/Item_Bread1.png'));
   const birdAlt = useImage(require('../assets/sprites/Item_Bread.png'));
@@ -66,8 +72,8 @@ useFocusEffect(
   const pipeTop = useImage(require('../assets/sprites/pipe-green-top.png'));
   const base = useImage(require('../assets/sprites/base.png'));
 
-  const menuClickSound = '../assets/sounds/clickMenuSound.mp3'
-  const onBreadTap = '../assets/sounds/onBreadTap.mp3'
+  const menuClickSound = '../assets/sounds/clickMenuSound.mp3';
+  const onBreadTap = '../assets/sounds/onBreadTap.mp3';
 
   const gravity = useSharedValue(DEFAULT_GRAVITY);
   const jumpForce = useSharedValue(DEFAULT_JUMP_FORCE);
@@ -175,6 +181,58 @@ useFocusEffect(
     setGameState('menu');
   }, [gameOver, isPlaying, pipeX, prepareRun, resetScore]);
 
+  // Profile management functions
+  const handleUpdateUsername = useCallback(async () => {
+    if (!editUsername.trim()) {
+      Alert.alert('Ошибка', 'Имя не может быть пустым');
+      return;
+    }
+
+    if (editUsername === user?.username) {
+      setShowProfileModal(false);
+      return;
+    }
+
+    try {
+      setUpdatingUsername(true);
+      await api.updateUsername(editUsername);
+      refreshAuth();
+      setShowProfileModal(false);
+      Alert.alert('Успех', 'Имя успешно обновлено');
+    } catch (error) {
+      Alert.alert('Ошибка', error instanceof Error ? error.message : 'Ошибка обновления имени');
+      setEditUsername(user?.username || '');
+    } finally {
+      setUpdatingUsername(false);
+    }
+  }, [editUsername, user?.username, refreshAuth]);
+
+  const handleDeleteProgress = useCallback(() => {
+    Alert.alert(
+      'Удалить прогресс',
+      'Это действие удалит все ваши игровые записи. Это нельзя отменить.',
+      [
+        { text: 'Отмена', onPress: () => {}, style: 'cancel' },
+        {
+          text: 'Удалить',
+          onPress: async () => {
+            try {
+              await api.deleteProgress();
+              updateHighScore(0);
+              Alert.alert('Успех', 'Прогресс удален');
+            } catch (error) {
+              Alert.alert(
+                'Ошибка',
+                error instanceof Error ? error.message : 'Ошибка удаления прогресса',
+              );
+            }
+          },
+          style: 'destructive',
+        },
+      ],
+    );
+  }, [updateHighScore]);
+
   const handleGameOver = useCallback(() => {
     cancelAnimation(pipeX);
     isPlaying.value = false;
@@ -220,9 +278,10 @@ useFocusEffect(
 
   useEffect(() => {
     void initTapSound();
-    return () => { void disposeTapSound(); };
+    return () => {
+      void disposeTapSound();
+    };
   }, []);
-  
 
   // ВАЖНО: Этот useAnimatedReaction из старой версии отвечает за респавн труб и подсчет очков
   useAnimatedReaction(
@@ -233,8 +292,7 @@ useFocusEffect(
       // Респавн труб когда они уходят за экран
       if (previousValue && currentValue < -100 && previousValue > -100) {
         const maxOffset = (height - baseHeight - pipeGap.value) / 2;
-        const randomOffset =
-          maxOffset <= 0 ? 0 : (Math.random() - 0.5) * maxOffset;
+        const randomOffset = maxOffset <= 0 ? 0 : (Math.random() - 0.5) * maxOffset;
         pipeOffset.value = randomOffset;
         cancelAnimation(pipeX);
         runOnJS(moveTheMap)();
@@ -250,7 +308,7 @@ useFocusEffect(
         scoreValue.value = scoreValue.value + 1;
         runOnJS(incrementScore)();
       }
-    }
+    },
   );
 
   // Исправлено: оставлена только одна проверка столкновений (прямоугольная)
@@ -397,45 +455,58 @@ useFocusEffect(
               {resourceError ? (
                 <RNText style={styles.tip}>Оффлайн режим: {resourceError}</RNText>
               ) : null}
-                  {!authLoading && (
-      user ? (
-        <View style={styles.authBlock}>
-          <RNText style={styles.welcomeText}>
-            Привет, {user?.username || user?.name || 'Гость'}!🍞
-          </RNText>
-          <TouchableOpacity
-            style={styles.logoutButton}
-            onPress={async () => {
-              try {
-                await api.logout();
-                refreshAuth();
-                Alert.alert('Выход', 'Вы вышли из аккаунта');
-              } catch (error) {
-                await removeToken();
-                refreshAuth();
-              }
-            }}
-          >
-            <RNText style={styles.logoutButtonText}>Выйти</RNText>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={styles.authButtons}>
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={() => router.push('/login')}
-          >
-            <RNText style={styles.secondaryButtonText}>Войти</RNText>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={() => router.push('/register')}
-          >
-            <RNText style={styles.secondaryButtonText}>Регистрация</RNText>
-          </TouchableOpacity>
-        </View>
-      )
-    )}
+              {!authLoading &&
+                (user ? (
+                  <View style={styles.authBlock}>
+                    <RNText style={styles.welcomeText}>
+                      Привет, {user?.username || user?.name || 'Гость'}!🍞
+                    </RNText>
+                    <View style={styles.profileButtonsContainer}>
+                      <TouchableOpacity
+                        style={styles.secondaryButton}
+                        onPress={() => {
+                          setEditUsername(user?.username || '');
+                          setShowProfileModal(true);
+                        }}
+                      >
+                        <RNText style={styles.secondaryButtonText}>Профиль</RNText>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteProgress}>
+                        <RNText style={styles.deleteButtonText}>Очистить</RNText>
+                      </TouchableOpacity>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.logoutButton}
+                      onPress={async () => {
+                        try {
+                          await api.logout();
+                          refreshAuth();
+                          Alert.alert('Выход', 'Вы вышли из аккаунта');
+                        } catch (error) {
+                          await removeToken();
+                          refreshAuth();
+                        }
+                      }}
+                    >
+                      <RNText style={styles.logoutButtonText}>Выйти</RNText>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <View style={styles.authButtons}>
+                    <TouchableOpacity
+                      style={styles.secondaryButton}
+                      onPress={() => router.push('/login')}
+                    >
+                      <RNText style={styles.secondaryButtonText}>Войти</RNText>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.secondaryButton}
+                      onPress={() => router.push('/register')}
+                    >
+                      <RNText style={styles.secondaryButtonText}>Регистрация</RNText>
+                    </TouchableOpacity>
+                  </View>
+                ))}
               <View style={styles.actionsColumn}>
                 <TouchableOpacity style={styles.primaryButton} onPress={startRun}>
                   <RNText style={styles.primaryButtonText}>Играть</RNText>
@@ -487,6 +558,51 @@ useFocusEffect(
             </View>
           ) : null}
         </View>
+
+        {/* Profile Modal */}
+        <Modal
+          visible={showProfileModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowProfileModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContainer}>
+              <RNText style={styles.modalTitle}>Редактировать профиль</RNText>
+
+              <View style={styles.formGroup}>
+                <RNText style={styles.label}>Имя пользователя</RNText>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Введите новое имя"
+                  value={editUsername}
+                  onChangeText={setEditUsername}
+                  editable={!updatingUsername}
+                  placeholderTextColor="#999"
+                />
+              </View>
+
+              <View style={styles.modalButtonsContainer}>
+                <TouchableOpacity
+                  style={[styles.primaryButton, updatingUsername && styles.disabledButton]}
+                  onPress={handleUpdateUsername}
+                  disabled={updatingUsername}
+                >
+                  <RNText style={styles.primaryButtonText}>
+                    {updatingUsername ? 'Сохранение...' : 'Сохранить'}
+                  </RNText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={() => setShowProfileModal(false)}
+                  disabled={updatingUsername}
+                >
+                  <RNText style={styles.secondaryButtonText}>Отмена</RNText>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </GestureDetector>
     </GestureHandlerRootView>
   );
@@ -604,11 +720,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#ffe4ad',
   },
-    hudBest: {
+  hudBest: {
     fontSize: 16,
     color: '#ffe4ad',
   },
-  // ========== ДОБАВЬТЕ ЭТО ========== 
+  // ========== ДОБАВЬТЕ ЭТО ==========
   authBlock: {
     backgroundColor: 'rgba(255, 244, 220, 0.3)',
     borderRadius: 16,
@@ -639,6 +755,68 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     marginBottom: 12,
+  },
+  profileButtonsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginVertical: 8,
+  },
+  deleteButton: {
+    backgroundColor: '#e63946',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+  deleteButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: '#fff4dc',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    gap: 20,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#3d2c1f',
+    marginBottom: 12,
+  },
+  formGroup: {
+    gap: 8,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#3d2c1f',
+  },
+  input: {
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#d4a574',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#3d2c1f',
+  },
+  modalButtonsContainer: {
+    gap: 12,
+    marginTop: 8,
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });
 export default App;
