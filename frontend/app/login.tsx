@@ -28,12 +28,10 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const response = await api.login(email, password);
-      
-      Alert.alert(
-        'Успех! 🎉',
-        `Добро пожаловать, ${response.user.username}!`,
-        [{ text: 'Начать', onPress: () => router.replace('/') }]
-      );
+
+      Alert.alert('Успех! 🎉', `Добро пожаловать, ${response.user.username}!`, [
+        { text: 'Начать', onPress: () => router.replace('/') },
+      ]);
     } catch (error: any) {
       Alert.alert('Ошибка входа', error.message || 'Неверный email или пароль');
     } finally {
@@ -44,6 +42,12 @@ export default function LoginScreen() {
   const handleRegisterPress = () => {
     router.push('/register');
   };
+  return (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+    >
+      <View style={styles.content}>
         {/* Заголовок */}
         <Text style={styles.title}>🍞 Вход</Text>
         <Text style={styles.subtitle}>Войдите чтобы сохранить прогресс</Text>
@@ -86,10 +90,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           {/* Ссылка на регистрацию */}
-          <TouchableOpacity
-            onPress={() => router.push('/register')}
-            disabled={loading}
-          >
+          <TouchableOpacity onPress={() => router.push('/register')} disabled={loading}>
             <Text style={styles.link}>
               Нет аккаунта? <Text style={styles.linkBold}>Регистрация</Text>
             </Text>
