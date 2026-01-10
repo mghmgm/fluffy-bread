@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { api } from '../services/apiClient';
-import { syncWithServer } from '../services/syncService';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -28,26 +27,23 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-        const response = await api.register(username, email, password);
-
-        // Синхронизация данных
-        await syncWithServer();
-
-        // ✅ Возвращаемся на главный экран
-        router.replace('/');
+      const response = await api.login(email, password);
+      
+      Alert.alert(
+        'Успех! 🎉',
+        `Добро пожаловать, ${response.user.username}!`,
+        [{ text: 'Начать', onPress: () => router.replace('/') }]
+      );
     } catch (error: any) {
-        Alert.alert('Ошибка регистрации', error.message || 'Попробуйте другой email');
+      Alert.alert('Ошибка входа', error.message || 'Неверный email или пароль');
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-    };
+  };
 
-  return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <View style={styles.content}>
+  const handleRegisterPress = () => {
+    router.push('/register');
+  };
         {/* Заголовок */}
         <Text style={styles.title}>🍞 Вход</Text>
         <Text style={styles.subtitle}>Войдите чтобы сохранить прогресс</Text>

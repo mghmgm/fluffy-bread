@@ -4,6 +4,9 @@ import dotenv from 'dotenv';
 import { initDatabase } from './config/postgres';
 import authRoutes from './routes/authRoutes';
 import gameRoutes from './routes/gameRoutes';
+import skinRoutes from './routes/skinRoutes';
+import achievementRoutes from './routes/achievementRoutes';
+import settingsRoutes from './routes/settingsRoutes';
 
 dotenv.config();
 
@@ -21,6 +24,9 @@ app.use(express.urlencoded({ extended: true }));
 // Роуты
 app.use('/api/auth', authRoutes);
 app.use('/api/game', gameRoutes);
+app.use('/api/skins', skinRoutes);
+app.use('/api/achievements', achievementRoutes);
+app.use('/api/settings', settingsRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Сервер работает' });
