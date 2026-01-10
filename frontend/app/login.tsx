@@ -143,6 +143,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textShadowColor: '#3d2c1f',
     textShadowRadius: 8,
+    marginTop: 40,
     marginBottom: 8,
   },
   subtitle: {
