@@ -2,9 +2,12 @@ import { Pool } from 'pg';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
+  ssl:
+    process.env.NODE_ENV === 'production' || process.env.DATABASE_URL?.includes('render.com')
+      ? {
+          rejectUnauthorized: false,
+        }
+      : false,
 });
 
 // Создание ВСЕХ таблиц

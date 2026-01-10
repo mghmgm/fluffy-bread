@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { User } from '../models/User';
+import { Settings } from '../models/Settings';
 import { generateToken } from '../utils/tokenUtils';
 
 export class AuthController {
@@ -23,6 +24,9 @@ export class AuthController {
 
       // Создание пользователя
       const user = await User.create(username, email, password);
+
+      // Создание настроек по умолчанию
+      await Settings.create(user.id);
 
       // Генерация токена
       const token = generateToken({

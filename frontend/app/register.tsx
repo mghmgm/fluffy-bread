@@ -12,17 +12,17 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { api } from '../services/apiClient';
-import { syncWithServer } from '../services/syncService';
 
 export default function RegisterScreen() {
   const router = useRouter();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
-    if (!username || !email || !password) {
+    if (!username || !email || !password || !confirmPassword) {
       Alert.alert('Ошибка', 'Заполните все поля');
       return;
     }
@@ -32,17 +32,19 @@ export default function RegisterScreen() {
       return;
     }
 
+    if (password !== confirmPassword) {
+      Alert.alert('Ошибка', 'Пароли не совпадают');
+      return;
+    }
+
     setLoading(true);
     try {
       const response = await api.register(username, email, password);
       
-      // Синхронизация данных
-      await syncWithServer();
-      
       Alert.alert(
         'Успех! 🎉', 
         `Добро пожаловать, ${response.user.username}!\n\nВаш прогресс теперь сохраняется в облаке.`,
-        [{ text: 'Начать игру', onPress: () => router.back() }]
+        [{ text: 'Начать игру', onPress: () => router.replace('/') }]
       );
     } catch (error: any) {
       Alert.alert('Ошибка регистрации', error.message || 'Попробуйте другой email');
@@ -90,6 +92,17 @@ export default function RegisterScreen() {
             placeholderTextColor="#999"
             value={password}
             onChangeText={setPassword}
+            secureTextEntry
+            autoCapitalize="none"
+            editable={!loading}
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Подтвердите пароль"
+            placeholderTextColor="#999"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
             secureTextEntry
             autoCapitalize="none"
             editable={!loading}
