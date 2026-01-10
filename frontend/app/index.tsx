@@ -558,52 +558,52 @@ const App = () => {
             </View>
           ) : null}
         </View>
+      </GestureDetector>
 
-        {/* Profile Modal */}
-        <Modal
-          visible={showProfileModal}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setShowProfileModal(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContainer}>
-              <RNText style={styles.modalTitle}>Редактировать профиль</RNText>
+      {/* Profile Modal */}
+      <Modal
+        visible={showProfileModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowProfileModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <RNText style={styles.modalTitle}>Редактировать профиль</RNText>
 
-              <View style={styles.formGroup}>
-                <RNText style={styles.label}>Имя пользователя</RNText>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Введите новое имя"
-                  value={editUsername}
-                  onChangeText={setEditUsername}
-                  editable={!updatingUsername}
-                  placeholderTextColor="#999"
-                />
-              </View>
+            <View style={styles.formGroup}>
+              <RNText style={styles.label}>Имя пользователя</RNText>
+              <TextInput
+                style={styles.input}
+                placeholder="Введите новое имя"
+                value={editUsername}
+                onChangeText={setEditUsername}
+                editable={!updatingUsername}
+                placeholderTextColor="#999"
+              />
+            </View>
 
-              <View style={styles.modalButtonsContainer}>
-                <TouchableOpacity
-                  style={[styles.primaryButton, updatingUsername && styles.disabledButton]}
-                  onPress={handleUpdateUsername}
-                  disabled={updatingUsername}
-                >
-                  <RNText style={styles.primaryButtonText}>
-                    {updatingUsername ? 'Сохранение...' : 'Сохранить'}
-                  </RNText>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.secondaryButton}
-                  onPress={() => setShowProfileModal(false)}
-                  disabled={updatingUsername}
-                >
-                  <RNText style={styles.secondaryButtonText}>Отмена</RNText>
-                </TouchableOpacity>
-              </View>
+            <View style={styles.modalButtonsContainer}>
+              <TouchableOpacity
+                style={[styles.primaryButton, updatingUsername && styles.disabledButton]}
+                onPress={handleUpdateUsername}
+                disabled={updatingUsername}
+              >
+                <RNText style={styles.primaryButtonText}>
+                  {updatingUsername ? 'Сохранение...' : 'Сохранить'}
+                </RNText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.secondaryButton}
+                onPress={() => setShowProfileModal(false)}
+                disabled={updatingUsername}
+              >
+                <RNText style={styles.secondaryButtonText}>Отмена</RNText>
+              </TouchableOpacity>
             </View>
           </View>
-        </Modal>
-      </GestureDetector>
+        </View>
+      </Modal>
     </GestureHandlerRootView>
   );
 };

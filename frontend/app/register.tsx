@@ -9,9 +9,12 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  SafeAreaView,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { api } from '../services/apiClient';
+import { resetGlobalSkinsState } from '../hooks/useSkins';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -39,6 +42,15 @@ export default function RegisterScreen() {
 
     setLoading(true);
     try {
+      // Очищаем локальные данные перед регистрацией нового пользователя
+      await AsyncStorage.multiRemove([
+        'fluffy-bread/skins/owned',
+        'fluffy-bread/skins/selected',
+        'fluffy-bread/achievements/state',
+        'fluffy-bread/runs/history',
+      ]);
+      resetGlobalSkinsState();
+
       const response = await api.register(username, email, password);
 
       Alert.alert(
@@ -48,97 +60,98 @@ export default function RegisterScreen() {
       );
     } catch (error: any) {
       Alert.alert('Ошибка регистрации', error.message || 'Попробуйте другой email');
-    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <View style={styles.content}>
-        {/* Заголовок */}
-        <Text style={styles.title}>🍞 Регистрация</Text>
-        <Text style={styles.subtitle}>Создайте аккаунт для синхронизации</Text>
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex}
+      >
+        <View style={styles.content}>
+          {/* Заголовок */}
+          <Text style={styles.title}>🍞 Регистрация</Text>
+          <Text style={styles.subtitle}>Создайте аккаунт для синхронизации</Text>
 
-        {/* Форма */}
-        <View style={styles.form}>
-          <TextInput
-            style={styles.input}
-            placeholder="Имя пользователя"
-            placeholderTextColor="#999"
-            value={username}
-            onChangeText={setUsername}
-            autoCapitalize="none"
-            editable={!loading}
-          />
+          {/* Форма */}
+          <View style={styles.form}>
+            <TextInput
+              style={styles.input}
+              placeholder="Имя пользователя"
+              placeholderTextColor="#999"
+              value={username}
+              onChangeText={setUsername}
+              autoCapitalize="none"
+              editable={!loading}
+            />
 
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor="#999"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            editable={!loading}
-          />
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor="#999"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              editable={!loading}
+            />
 
-          <TextInput
-            style={styles.input}
-            placeholder="Пароль (минимум 6 символов)"
-            placeholderTextColor="#999"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoCapitalize="none"
-            editable={!loading}
-          />
+            <TextInput
+              style={styles.input}
+              placeholder="Пароль (минимум 6 символов)"
+              placeholderTextColor="#999"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              editable={!loading}
+            />
 
-          <TextInput
-            style={styles.input}
-            placeholder="Подтвердите пароль"
-            placeholderTextColor="#999"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-            autoCapitalize="none"
-            editable={!loading}
-          />
+            <TextInput
+              style={styles.input}
+              placeholder="Подтвердите пароль"
+              placeholderTextColor="#999"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              editable={!loading}
+            />
 
-          {/* Кнопка регистрации */}
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleRegister}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#3d2c1f" />
-            ) : (
-              <Text style={styles.buttonText}>Зарегистрироваться</Text>
-            )}
-          </TouchableOpacity>
+            {/* Кнопка регистрации */}
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleRegister}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#3d2c1f" />
+              ) : (
+                <Text style={styles.buttonText}>Зарегистрироваться</Text>
+              )}
+            </TouchableOpacity>
 
-          {/* Ссылка на логин */}
-          <TouchableOpacity onPress={() => router.push('/login')} disabled={loading}>
-            <Text style={styles.link}>
-              Уже есть аккаунт? <Text style={styles.linkBold}>Войти</Text>
-            </Text>
-          </TouchableOpacity>
+            {/* Ссылка на логин */}
+            <TouchableOpacity onPress={() => router.push('/login')} disabled={loading}>
+              <Text style={styles.link}>
+                Уже есть аккаунт? <Text style={styles.linkBold}>Войти</Text>
+              </Text>
+            </TouchableOpacity>
 
-          {/* Кнопка назад */}
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-            disabled={loading}
-          >
-            <Text style={styles.backButtonText}>← Назад в меню</Text>
-          </TouchableOpacity>
+            {/* Кнопка назад */}
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
+              disabled={loading}
+            >
+              <Text style={styles.backButtonText}>← Назад в меню</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -146,6 +159,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#87CEEB',
+  },
+  flex: {
+    flex: 1,
   },
   content: {
     flex: 1,
