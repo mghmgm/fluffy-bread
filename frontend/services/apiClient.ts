@@ -41,7 +41,7 @@ export const removeUser = async (): Promise<void> => {
 // Базовый fetch с авторизацией
 const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   const token = await getToken();
-  
+
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...options.headers,

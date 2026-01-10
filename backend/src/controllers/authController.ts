@@ -31,12 +31,12 @@ export class AuthController {
       // Генерация токена
       const token = generateToken({
         userId: user.id,
-        email: user.email
+        email: user.email,
       });
 
       res.status(201).json({
         user: User.toResponse(user),
-        token
+        token,
       });
     } catch (error) {
       console.error('Register error:', error);
@@ -66,12 +66,12 @@ export class AuthController {
       // Генерация токена
       const token = generateToken({
         userId: user.id,
-        email: user.email
+        email: user.email,
       });
 
       res.status(200).json({
         user: User.toResponse(user),
-        token
+        token,
       });
     } catch (error) {
       console.error('Login error:', error);
@@ -95,7 +95,7 @@ export class AuthController {
       }
 
       res.status(200).json({
-        user: User.toResponse(user)
+        user: User.toResponse(user),
       });
     } catch (error) {
       console.error('GetMe error:', error);

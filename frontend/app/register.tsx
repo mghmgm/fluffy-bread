@@ -40,11 +40,11 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       const response = await api.register(username, email, password);
-      
+
       Alert.alert(
-        'Успех! 🎉', 
+        'Успех! 🎉',
         `Добро пожаловать, ${response.user.username}!\n\nВаш прогресс теперь сохраняется в облаке.`,
-        [{ text: 'Начать игру', onPress: () => router.replace('/') }]
+        [{ text: 'Начать игру', onPress: () => router.replace('/') }],
       );
     } catch (error: any) {
       Alert.alert('Ошибка регистрации', error.message || 'Попробуйте другой email');
@@ -54,7 +54,7 @@ export default function RegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
@@ -122,10 +122,7 @@ export default function RegisterScreen() {
           </TouchableOpacity>
 
           {/* Ссылка на логин */}
-          <TouchableOpacity
-            onPress={() => router.push('/login')}
-            disabled={loading}
-          >
+          <TouchableOpacity onPress={() => router.push('/login')} disabled={loading}>
             <Text style={styles.link}>
               Уже есть аккаунт? <Text style={styles.linkBold}>Войти</Text>
             </Text>
