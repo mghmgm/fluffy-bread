@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { User } from '../models/User';
 import { Settings } from '../models/Settings';
 import { generateToken } from '../utils/tokenUtils';
+import pool from '../config/postgres';
 
 export class AuthController {
   // Регистрация
@@ -106,5 +107,60 @@ export class AuthController {
   // Выход (опционально)
   static async logout(req: Request, res: Response): Promise<void> {
     res.status(200).json({ message: 'Выход выполнен' });
+  }
+
+  // Обновить имя пользователя
+  static async updateUsername(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        res.status(401).json({ error: 'Не авторизован' });
+        return;
+      }
+
+      const { username } = req.body;
+
+      if (!username || username.trim().length === 0) {
+        res.status(400).json({ error: 'Username не может быть пустым' });
+        return;
+      }
+
+      // Проверка, что username не занят
+      const existingUser = await User.findByUsername(username);
+      if (existingUser && existingUser.id !== userId) {
+        res.status(400).json({ error: 'Username уже занят' });
+        return;
+      }
+
+      // Обновляем username
+      const user = await User.updateUsername(userId, username);
+
+      res.status(200).json({
+        user: User.toResponse(user),
+        message: 'Username успешно обновлено',
+      });
+    } catch (error) {
+      console.error('Update username error:', error);
+      res.status(500).json({ error: 'Ошибка обновления username' });
+    }
+  }
+
+  // Удалить прогресс (очистить все высокие баллы)
+  static async deleteProgress(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        res.status(401).json({ error: 'Не авторизован' });
+        return;
+      }
+
+      // Удаляем все игровые записи для пользователя
+      await pool.query('DELETE FROM game_scores WHERE user_id = $1', [userId]);
+
+      res.status(200).json({ message: 'Прогресс успешно удален' });
+    } catch (error) {
+      console.error('Delete progress error:', error);
+      res.status(500).json({ error: 'Ошибка удаления прогресса' });
+    }
   }
 }

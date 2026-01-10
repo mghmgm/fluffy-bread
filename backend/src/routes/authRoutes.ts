@@ -10,6 +10,8 @@ router.post('/login', AuthController.login);
 
 // Защищенные роуты
 router.get('/me', authMiddleware, AuthController.getMe);
-router.post('/logout', authMiddleware, AuthController.logout); 
+router.post('/logout', authMiddleware, AuthController.logout);
+router.put('/update-username', authMiddleware, AuthController.updateUsername);
+router.delete('/progress', authMiddleware, AuthController.deleteProgress);
 
 export default router;
