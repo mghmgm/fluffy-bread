@@ -78,6 +78,27 @@ export default function RootLayout() {
             animation: 'slide_from_right',
           }}
         />
+        <Stack.Screen
+        name="login"
+        options={{
+          presentation: 'transparentModal',
+          animation: 'slide_from_right',
+        }}
+        />
+        <Stack.Screen
+        name="register"
+        options={{
+          presentation: 'transparentModal',
+          animation: 'slide_from_right',
+        }}
+        />
+        <Stack.Screen
+        name="settings"
+        options={{
+          presentation: 'transparentModal',
+          animation: 'slide_from_right',
+        }}
+        />
       </Stack>
     </>
   );
