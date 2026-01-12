@@ -2,8 +2,9 @@ import { useBackgroundMusic } from '@/hooks/useBackgroundMusic';
 import { useEffect, useState } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { initDatabase } from './database/Database';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, } from 'react-native';
 import { getUser, removeUser, removeToken, api } from '../services/apiClient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function RootLayout() {
   const [user, setUser] = useState<any | null>(null);
@@ -34,28 +35,30 @@ export default function RootLayout() {
 
   return (
     <>
-      <View style={styles.header}>
-        <Text style={styles.title}>Fluffy Bread</Text>
-        <View style={styles.actions}>
-          {user ? (
-            <>
-              <Text style={styles.username}>{user.username}</Text>
-              <TouchableOpacity style={styles.btn} onPress={handleLogout}>
-                <Text style={styles.btnText}>Выйти</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              <TouchableOpacity style={styles.btn} onPress={() => router.push('/login')}>
-                <Text style={styles.btnText}>Войти</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.btn} onPress={() => router.push('/register')}>
-                <Text style={styles.btnText}>Регистрация</Text>
-              </TouchableOpacity>
-            </>
-          )}
+      <SafeAreaView edges={['top', 'left', 'right']}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Fluffy Bread</Text>
+          <View style={styles.actions}>
+            {user ? (
+              <>
+                <Text style={styles.username}>{user.username}</Text>
+                <TouchableOpacity style={styles.btn} onPress={handleLogout}>
+                  <Text style={styles.btnText}>Выйти</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <TouchableOpacity style={styles.btn} onPress={() => router.push('/login')}>
+                  <Text style={styles.btnText}>Войти</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.btn} onPress={() => router.push('/register')}>
+                  <Text style={styles.btnText}>Регистрация</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
         </View>
-      </View>
+      </SafeAreaView>
 
       <Stack
         screenOptions={{
@@ -79,25 +82,25 @@ export default function RootLayout() {
           }}
         />
         <Stack.Screen
-        name="login"
-        options={{
-          presentation: 'transparentModal',
-          animation: 'slide_from_right',
-        }}
+          name="login"
+          options={{
+            presentation: 'transparentModal',
+            animation: 'slide_from_right',
+          }}
         />
         <Stack.Screen
-        name="register"
-        options={{
-          presentation: 'transparentModal',
-          animation: 'slide_from_right',
-        }}
+          name="register"
+          options={{
+            presentation: 'transparentModal',
+            animation: 'slide_from_right',
+          }}
         />
         <Stack.Screen
-        name="settings"
-        options={{
-          presentation: 'transparentModal',
-          animation: 'slide_from_right',
-        }}
+          name="settings"
+          options={{
+            presentation: 'transparentModal',
+            animation: 'slide_from_right',
+          }}
         />
       </Stack>
     </>
