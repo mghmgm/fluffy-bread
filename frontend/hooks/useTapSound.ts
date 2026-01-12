@@ -5,13 +5,12 @@ let loading: Promise<void> | null = null;
 
 export async function initTapSound() {
   if (tapSound) return;
-
-  // защита от параллельных загрузок
   if (loading) return loading;
 
   loading = (async () => {
     const { sound } = await Audio.Sound.createAsync(
-      require('../assets/sounds/onBreadTap.mp3')
+      require('../assets/sounds/onBreadTap.mp3'),
+      { shouldPlay: false }
     );
     tapSound = sound;
   })();
@@ -23,10 +22,11 @@ export async function initTapSound() {
   }
 }
 
-export async function playTapSound() {
-  if (!tapSound) {
-    await initTapSound();
-  }
+export async function playTapSound(volume: number) {
+  if (volume <= 0) return;
+  if (!tapSound) await initTapSound();
+
+  await tapSound?.setVolumeAsync(volume);
   await tapSound?.replayAsync();
 }
 

@@ -36,6 +36,7 @@ import { useSkins } from '../hooks/useSkins';
 import { appendRun } from '../services/gameApi';
 import { playTapSound, initTapSound, disposeTapSound } from '../hooks/useTapSound';
 import { useBackgroundMusic } from '@/hooks/useBackgroundMusic';
+import { useAudioSettings } from '@/hooks/useAudioSettings';
 
 const DEFAULT_GRAVITY = 1000;
 const DEFAULT_JUMP_FORCE = -500;
@@ -64,7 +65,9 @@ const App = () => {
   const { ownedSkins, activeSkin, setActiveSkin, refreshOwned } = useSkins();
   const { state: achievementsState, recentUnlocks, evaluateAfterRun } = useAchievements();
 
-  useBackgroundMusic(gameState === 'menu');
+  const { musicVolume } = useAudioSettings();
+  const { sfxVolume } = useAudioSettings();
+  useBackgroundMusic(gameState === 'menu', musicVolume);
 
   // Profile editor state
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -393,7 +396,7 @@ const App = () => {
     }
 
     birdYVelocity.value = jumpForce.value;
-    runOnJS(playTapSound)();
+    runOnJS(playTapSound)(sfxVolume);
   });
 
   const birdTransform = useDerivedValue(() => {
@@ -528,6 +531,12 @@ const App = () => {
                   onPress={() => router.push('/achievements')}
                 >
                   <RNText style={styles.secondaryButtonText}>Достижения</RNText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.secondaryButton}
+                  onPress={() => router.push('/settings')}
+                >
+                  <RNText style={styles.secondaryButtonText}>Настройки</RNText>
                 </TouchableOpacity>
               </View>
             </View>

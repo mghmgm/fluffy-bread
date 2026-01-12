@@ -5,6 +5,7 @@ import { initDatabase } from './database/Database';
 import { View, Text, TouchableOpacity, StyleSheet, } from 'react-native';
 import { getUser, removeUser, removeToken, api } from '../services/apiClient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AudioSettingsProvider } from '@/hooks/useAudioSettings';
 
 export default function RootLayout() {
   const [user, setUser] = useState<any | null>(null);
@@ -32,7 +33,7 @@ export default function RootLayout() {
   };
 
   return (
-    <>
+    <AudioSettingsProvider>
       <SafeAreaView edges={['top', 'left', 'right']}>
         <View style={styles.header}>
           <Text style={styles.title}>Fluffy Bread</Text>
@@ -101,7 +102,7 @@ export default function RootLayout() {
           }}
         />
       </Stack>
-    </>
+    </AudioSettingsProvider>
   );
 }
 
