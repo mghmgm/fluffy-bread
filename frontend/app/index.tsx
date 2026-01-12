@@ -461,61 +461,6 @@ const App = () => {
               <RNText style={styles.title}>Fluffy Bread</RNText>
               <RNText style={styles.subtitle}>Тапните хлеб, чтобы взлететь</RNText>
               <RNText style={styles.tip}>{config.tip}</RNText>
-              {resourceError ? (
-                <RNText style={styles.tip}>Оффлайн режим: {resourceError}</RNText>
-              ) : null}
-              {!authLoading &&
-                (user ? (
-                  <View style={styles.authBlock}>
-                    <RNText style={styles.welcomeText}>
-                      Привет, {user?.username || user?.name || 'Гость'}!🍞
-                    </RNText>
-                    <View style={styles.profileButtonsContainer}>
-                      <TouchableOpacity
-                        style={styles.secondaryButton}
-                        onPress={() => {
-                          setEditUsername(user?.username || '');
-                          setShowProfileModal(true);
-                        }}
-                      >
-                        <RNText style={styles.secondaryButtonText}>Профиль</RNText>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteProgress}>
-                        <RNText style={styles.deleteButtonText}>Очистить</RNText>
-                      </TouchableOpacity>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.logoutButton}
-                      onPress={async () => {
-                        try {
-                          await api.logout();
-                          refreshAuth();
-                          Alert.alert('Выход', 'Вы вышли из аккаунта');
-                        } catch (error) {
-                          await removeToken();
-                          refreshAuth();
-                        }
-                      }}
-                    >
-                      <RNText style={styles.logoutButtonText}>Выйти</RNText>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  <View style={styles.authButtons}>
-                    <TouchableOpacity
-                      style={styles.secondaryButton}
-                      onPress={() => router.push('/login')}
-                    >
-                      <RNText style={styles.secondaryButtonText}>Войти</RNText>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.secondaryButton}
-                      onPress={() => router.push('/register')}
-                    >
-                      <RNText style={styles.secondaryButtonText}>Регистрация</RNText>
-                    </TouchableOpacity>
-                  </View>
-                ))}
               <View style={styles.actionsColumn}>
                 <TouchableOpacity style={styles.primaryButton} onPress={startRun}>
                   <RNText style={styles.primaryButtonText}>Играть</RNText>

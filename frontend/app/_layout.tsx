@@ -34,7 +34,7 @@ export default function RootLayout() {
 
   return (
     <AudioSettingsProvider>
-      <SafeAreaView edges={['top', 'left', 'right']}>
+      {/* <SafeAreaView edges={['top', 'left', 'right']} />
         <View style={styles.header}>
           <Text style={styles.title}>Fluffy Bread</Text>
           <View style={styles.actions}>
@@ -56,8 +56,7 @@ export default function RootLayout() {
               </>
             )}
           </View>
-        </View>
-      </SafeAreaView>
+        </View> */}
 
       <Stack
         screenOptions={{
