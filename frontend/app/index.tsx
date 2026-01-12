@@ -35,6 +35,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useSkins } from '../hooks/useSkins';
 import { appendRun } from '../services/gameApi';
 import { playTapSound, initTapSound, disposeTapSound } from '../hooks/useTapSound';
+import { useBackgroundMusic } from '@/hooks/useBackgroundMusic';
 
 const DEFAULT_GRAVITY = 1000;
 const DEFAULT_JUMP_FORCE = -500;
@@ -44,6 +45,9 @@ const baseHeight = 150;
 
 const App = () => {
   const { user, loading: authLoading, refresh: refreshAuth } = useAuth();
+
+  
+
   useFocusEffect(
     useCallback(() => {
       refreshAuth();
@@ -59,6 +63,8 @@ const App = () => {
   >('menu');
   const { ownedSkins, activeSkin, setActiveSkin, refreshOwned } = useSkins();
   const { state: achievementsState, recentUnlocks, evaluateAfterRun } = useAchievements();
+
+  useBackgroundMusic(gameState === 'menu');
 
   // Profile editor state
   const [showProfileModal, setShowProfileModal] = useState(false);

@@ -19,8 +19,6 @@ export default function RootLayout() {
     load();
   }, []);
 
-  useBackgroundMusic();
-
   const handleLogout = async () => {
     try {
       await api.logout();
