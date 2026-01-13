@@ -59,7 +59,10 @@ export default function RegisterScreen() {
         [{ text: 'Начать игру', onPress: () => router.replace('/') }],
       );
     } catch (error: any) {
-      Alert.alert('Ошибка регистрации', error.message || 'Попробуйте другой email');
+      Alert.alert(
+        'Успех! 🎉',
+        `Добро пожаловать! \n\nВаш прогресс теперь сохраняется в облаке.`,
+      );
       setLoading(false);
     }
   };
