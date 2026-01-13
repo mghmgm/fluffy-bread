@@ -11,37 +11,43 @@
     "ios": {
       "supportsTablet": true
     },
-    "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.fluffybread"
+  "android": {
+    "adaptiveIcon": {
+      "foregroundImage": "./assets/adaptive-icon.png",
+      "backgroundColor": "#E6F4FE"
     },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
-    },
-    "plugins": [
-      "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
-        }
-      ],
-      "expo-sqlite"
+    "edgeToEdgeEnabled": true,
+    "predictiveBackGestureEnabled": false,
+    "package": "com.anonymous.fluffybread"
+  }
+  ,
+  "web": {
+    "output": "static",
+    "favicon": "./assets/favicon.png"
+  },
+  "plugins": [
+    "expo-router",
+    [
+      "expo-splash-screen",
+      {
+        "image": "./assets/splash.png",
+        "imageWidth": 200,
+        "resizeMode": "contain",
+        "backgroundColor": "#ffffff",
+        "dark": { "backgroundColor": "#000000" }
+      }
     ],
+    "expo-sqlite"
+  ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2c48ca24-bedf-4904-9b04-9024c7ef8fca"
+      }
     }
   }
 }
