@@ -69,7 +69,8 @@ export class User {
 
       const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
 
-      if (result.rowCount > 0) {
+      // Исправление: добавлена проверка на null и приведение к числу
+      if (result.rowCount && result.rowCount > 0) {
         return { success: true, message: 'Аккаунт успешно удален' };
       } else {
         return { success: false, message: 'Не удалось удалить аккаунт' };
