@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, Modal } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { useFocusEffect, useRouter } from 'expo-router';
 
@@ -22,6 +22,9 @@ export default function SettingsScreen() {
 
   const [editUsername, setEditUsername] = useState('');
   const [saving, setSaving] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [password, setPassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   // При каждом заходе в настройки обновляем auth
   useFocusEffect(
@@ -73,28 +76,60 @@ export default function SettingsScreen() {
     router.back();
   }, [refreshAuth, router]);
 
-  const handleDeleteProgress = useCallback(() => {
+  const handleDeleteAccount = useCallback(async () => {
+    if (!password.trim()) {
+      Alert.alert('Ошибка', 'Введите пароль для подтверждения');
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      await api.deleteAccount({ password });
+      
+      await removeToken();
+      await refreshAuth();
+      
+      setDeleteModalVisible(false);
+      setPassword('');
+      
+      Alert.alert(
+        'Аккаунт удален',
+        'Ваш аккаунт и все данные были успешно удалены.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              router.replace('/');
+            }
+          }
+        ]
+      );
+    } catch (e: any) {
+      Alert.alert('Ошибка', e?.response?.data?.error || 'Не удалось удалить аккаунт');
+    } finally {
+      setDeleting(false);
+    }
+  }, [password, refreshAuth, router]);
+
+  const openDeleteModal = useCallback(() => {
     Alert.alert(
-      'Удалить прогресс',
-      'Это действие удалит все ваши игровые записи. Это нельзя отменить.',
+      'Удаление аккаунта',
+      'Это действие удалит:\n\n• Ваш аккаунт\n• Все игровые данные\n• Настройки\n\nЭто действие НЕОБРАТИМО!\n\nПродолжить?',
       [
         { text: 'Отмена', style: 'cancel' },
         {
-          text: 'Удалить',
+          text: 'Продолжить',
           style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.deleteProgress();
-              await updateHighScore(0);
-              Alert.alert('Успех', 'Прогресс удалён');
-            } catch (e) {
-              Alert.alert('Ошибка', e instanceof Error ? e.message : 'Не удалось удалить прогресс');
-            }
-          },
-        },
+          onPress: () => setDeleteModalVisible(true)
+        }
       ]
     );
-  }, [updateHighScore]);
+  }, []);
+
+  const closeDeleteModal = useCallback(() => {
+    setDeleteModalVisible(false);
+    setPassword('');
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -136,6 +171,7 @@ export default function SettingsScreen() {
         ) : user ? (
           <>
             <Text style={styles.muted}>Вы вошли как: {user.username}</Text>
+            <Text style={styles.muted}>Email: {user.email}</Text>
 
             <TextInput
               style={styles.input}
@@ -160,8 +196,8 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={[styles.btn, styles.danger]} onPress={handleDeleteProgress}>
-              <Text style={styles.btnText}>Удалить прогресс</Text>
+            <TouchableOpacity style={[styles.btn, styles.danger]} onPress={openDeleteModal}>
+              <Text style={styles.btnText}>Удалить аккаунт</Text>
             </TouchableOpacity>
           </>
         ) : (
@@ -176,9 +212,59 @@ export default function SettingsScreen() {
         )}
       </View>
 
-      <TouchableOpacity style={[styles.btn, styles.close]} onPress={() => router.back()}>
-        <Text style={styles.btnText}>Закрыть</Text>
+      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <Text style={styles.backButtonText}>← Вернуться в меню</Text>
       </TouchableOpacity>
+
+      <Modal
+        visible={deleteModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={closeDeleteModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Подтверждение удаления</Text>
+            
+            <Text style={styles.modalText}>
+              Это действие необратимо. Все ваши данные будут удалены.
+            </Text>
+
+            <Text style={styles.modalWarning}>
+              Введите ваш пароль для подтверждения:
+            </Text>
+            <TextInput
+              style={styles.modalInput}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Пароль"
+              placeholderTextColor="#999"
+              secureTextEntry
+              editable={!deleting}
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalCancelButton]}
+                onPress={closeDeleteModal}
+                disabled={deleting}
+              >
+                <Text style={styles.modalButtonText}>Отмена</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalDeleteButton]}
+                onPress={handleDeleteAccount}
+                disabled={deleting || !password.trim()}
+              >
+                <Text style={styles.modalButtonText}>
+                  {deleting ? 'Удаление...' : 'Удалить аккаунт'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -218,6 +304,83 @@ const styles = StyleSheet.create({
   },
   btnText: { color: '#fff4dc', fontWeight: '700' },
   btnDisabled: { opacity: 0.6 },
+  warning: { backgroundColor: '#ff9500' },
   danger: { backgroundColor: '#e63946' },
-  close: { alignSelf: 'flex-start' },
+  
+  backButton: {
+    marginTop: 16,
+    padding: 12,
+  },
+  backButtonText: {
+    textAlign: 'center',
+    color: '#3d2c1f',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff4dc',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    gap: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#e63946',
+    textAlign: 'center',
+  },
+  modalText: {
+    fontSize: 16,
+    color: '#3d2c1f',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  modalWarning: {
+    fontSize: 14,
+    color: '#e63946',
+    fontWeight: '600',
+    marginTop: 8,
+  },
+  modalInput: {
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#e63946',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#3d2c1f',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalCancelButton: {
+    backgroundColor: '#666',
+  },
+  modalDeleteButton: {
+    backgroundColor: '#e63946',
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
 });

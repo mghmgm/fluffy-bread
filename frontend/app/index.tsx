@@ -47,8 +47,6 @@ const baseHeight = 150;
 const App = () => {
   const { user, loading: authLoading, refresh: refreshAuth } = useAuth();
 
-  
-
   useFocusEffect(
     useCallback(() => {
       refreshAuth();
@@ -74,6 +72,7 @@ const App = () => {
   const [editUsername, setEditUsername] = useState(user?.username || '');
   const [updatingUsername, setUpdatingUsername] = useState(false);
 
+  // Убрал использование иконки
   const bg = useImage(require('../assets/sprites/background-day.png'));
   const birdDefault = useImage(require('../assets/sprites/Item_Bread1.png'));
   const birdAlt = useImage(require('../assets/sprites/Item_Bread.png'));
@@ -449,6 +448,7 @@ const App = () => {
               />
             </Group>
           </Canvas>
+
           {gameState === 'playing' ? (
             <View style={styles.hud} pointerEvents="none">
               <RNText style={styles.hudScore}>{score}</RNText>
@@ -459,6 +459,8 @@ const App = () => {
           {gameState === 'menu' ? (
             <View style={styles.overlay}>
               <RNText style={styles.title}>Fluffy Bread</RNText>
+              {/* ИСПРАВЛЕНИЕ: Добавлена проверка на user */}
+              {user && <RNText style={styles.welcomeText}>Привет, {user.username}!</RNText>}
               <RNText style={styles.subtitle}>Тапните хлеб, чтобы взлететь</RNText>
               <RNText style={styles.tip}>{config.tip}</RNText>
               <View style={styles.actionsColumn}>
@@ -687,20 +689,6 @@ const styles = StyleSheet.create({
   hudBest: {
     fontSize: 16,
     color: '#ffe4ad',
-  },
-  hudBest: {
-    fontSize: 16,
-    color: '#ffe4ad',
-  },
-  // ========== ДОБАВЬТЕ ЭТО ==========
-  authBlock: {
-    backgroundColor: 'rgba(255, 244, 220, 0.3)',
-    borderRadius: 16,
-    padding: 16,
-    gap: 8,
-    marginBottom: 12,
-    width: '100%',
-    maxWidth: 300,
   },
   welcomeText: {
     fontSize: 16,

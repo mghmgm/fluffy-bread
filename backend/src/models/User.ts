@@ -57,4 +57,26 @@ export class User {
       createdAt: user.createdAt,
     };
   }
+
+  // Удалить аккаунт
+  static async deleteAccountSafe(id: number): Promise<{ success: boolean; message?: string }> {
+    try {
+      const userExists = await this.findById(id);
+
+      if (!userExists) {
+        return { success: false, message: 'Пользователь не найден' };
+      }
+
+      const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
+
+      if (result.rowCount > 0) {
+        return { success: true, message: 'Аккаунт успешно удален' };
+      } else {
+        return { success: false, message: 'Не удалось удалить аккаунт' };
+      }
+    } catch (error) {
+      console.error('Ошибка при удалении аккаунта:', error);
+      return { success: false, message: 'Внутренняя ошибка сервера' };
+    }
+  }
 }

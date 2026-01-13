@@ -1,15 +1,12 @@
-import { useBackgroundMusic } from '@/hooks/useBackgroundMusic';
 import { useEffect, useState } from 'react';
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
 import { initDatabase } from './database/Database';
-import { View, Text, TouchableOpacity, StyleSheet, } from 'react-native';
-import { getUser, removeUser, removeToken, api } from '../services/apiClient';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet, } from 'react-native';
+import { getUser} from '../services/apiClient';
 import { AudioSettingsProvider } from '@/hooks/useAudioSettings';
 
 export default function RootLayout() {
   const [user, setUser] = useState<any | null>(null);
-  const router = useRouter();
 
   useEffect(() => {
     initDatabase();
@@ -20,44 +17,8 @@ export default function RootLayout() {
     load();
   }, []);
 
-  const handleLogout = async () => {
-    try {
-      await api.logout();
-    } catch (e) {
-      // ignore
-    }
-    await removeToken();
-    await removeUser();
-    setUser(null);
-    router.replace('/');
-  };
-
   return (
     <AudioSettingsProvider>
-      {/* <SafeAreaView edges={['top', 'left', 'right']} />
-        <View style={styles.header}>
-          <Text style={styles.title}>Fluffy Bread</Text>
-          <View style={styles.actions}>
-            {user ? (
-              <>
-                <Text style={styles.username}>{user.username}</Text>
-                <TouchableOpacity style={styles.btn} onPress={handleLogout}>
-                  <Text style={styles.btnText}>Выйти</Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                <TouchableOpacity style={styles.btn} onPress={() => router.push('/login')}>
-                  <Text style={styles.btnText}>Войти</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.btn} onPress={() => router.push('/register')}>
-                  <Text style={styles.btnText}>Регистрация</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        </View> */}
-
       <Stack
         screenOptions={{
           headerShown: false,

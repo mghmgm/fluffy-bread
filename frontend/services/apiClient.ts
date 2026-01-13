@@ -193,4 +193,20 @@ export const api = {
       method: 'DELETE',
     });
   },
+
+  // Удаление аккаунта
+  deleteAccount: async (data: { password: string; confirm: string }) => {
+    const result = await apiRequest('/auth/delete-account', {
+      method: 'DELETE',
+      body: JSON.stringify(data),
+    });
+    
+    // После успешного удаления аккаунта очищаем локальные данные
+    await removeToken();
+    await removeUser();
+    
+    return result;
+  },
 };
+
+export type Api = typeof api;

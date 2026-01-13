@@ -1,6 +1,0 @@
-node_modules/
-.env
-*.db
-*.db-journal
-*.log
-dist/

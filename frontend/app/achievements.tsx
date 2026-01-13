@@ -2,8 +2,6 @@ import { useAchievements } from "@/hooks/useAchievements";
 import { useRouter } from "expo-router";
 import { View, Text as RNText, StyleSheet, TouchableOpacity, useWindowDimensions, ImageBackground } from 'react-native';
 
-
-// Исправлено: название компонента с заглавной
 export default function Achievements() {
     const { state: achievementsState } = useAchievements()
     const { width, height } = useWindowDimensions();
