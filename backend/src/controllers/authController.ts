@@ -164,11 +164,8 @@ export class AuthController {
     }
   }
 
-  // Удалить аккаунт
-  // Удалить аккаунт
+  // Удалить аккаунт (простая и надежная версия)
   static async deleteAccount(req: Request, res: Response): Promise<void> {
-    let client = null;
-
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -199,96 +196,56 @@ export class AuthController {
 
       console.log(`Начинаем удаление пользователя ID: ${userId}`);
 
-      // Получаем соединение для транзакции
-      client = await pool.connect();
+      // Проверяем, какие таблицы существуют
+      const tablesResult = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+      AND table_name IN ('user_achievements', 'skins', 'settings')
+    `);
 
-      try {
-        // Начинаем транзакцию
-        await client.query('BEGIN');
+      const existingTables = tablesResult.rows.map((r: any) => r.table_name);
+      console.log('Существующие таблицы:', existingTables);
 
-        // Пробуем удалить связанные данные
-        // 1. Проверяем и удаляем из user_achievements
+      // Удаляем из существующих таблиц
+      for (const table of existingTables) {
         try {
-          await client.query('DELETE FROM user_achievements WHERE user_id = $1', [userId]);
-          console.log('Удалено из user_achievements');
+          const result = await pool.query(`DELETE FROM ${table} WHERE user_id = $1`, [userId]);
+          console.log(`Удалено ${result.rowCount} записей из ${table}`);
         } catch (error: any) {
-          if (error.code !== '42P01') {
-            // Если не "таблица не существует"
-            console.log('Ошибка при удалении из user_achievements:', error.message);
+          // Если нет колонки user_id, пробуем другие варианты
+          if (error.code === '42703') {
+            // undefined column
+            try {
+              const result = await pool.query(`DELETE FROM ${table} WHERE user = $1`, [userId]);
+              console.log(`Удалено ${result.rowCount} записей из ${table} (по user)`);
+            } catch (error2: any) {
+              console.log(`Не удалось удалить из ${table}:`, error2.message);
+            }
+          } else {
+            console.log(`Ошибка при удалении из ${table}:`, error.message);
           }
         }
-
-        // 2. Проверяем и удаляем из skins (используем прямой запрос)
-        try {
-          // Сначала проверяем, есть ли такая таблица
-          const checkTable = await client.query(`
-          SELECT EXISTS (
-            SELECT FROM information_schema.tables 
-            WHERE table_schema = 'public' 
-            AND table_name = 'skins'
-          )
-        `);
-
-          if (checkTable.rows[0].exists) {
-            await client.query('DELETE FROM skins WHERE user_id = $1', [userId]);
-            console.log('Удалено из skins');
-          }
-        } catch (error: any) {
-          console.log('Ошибка при удалении из skins:', error.message);
-        }
-
-        // 3. Проверяем и удаляем из settings
-        try {
-          const checkTable = await client.query(`
-          SELECT EXISTS (
-            SELECT FROM information_schema.tables 
-            WHERE table_schema = 'public' 
-            AND table_name = 'settings'
-          )
-        `);
-
-          if (checkTable.rows[0].exists) {
-            await client.query('DELETE FROM settings WHERE user_id = $1', [userId]);
-            console.log('Удалено из settings');
-          }
-        } catch (error: any) {
-          console.log('Ошибка при удалении из settings:', error.message);
-        }
-
-        // 4. Удаляем самого пользователя
-        const deleteResult = await client.query('DELETE FROM users WHERE id = $1', [userId]);
-
-        if (deleteResult.rowCount === 0) {
-          await client.query('ROLLBACK');
-          res.status(404).json({ error: 'Пользователь не найден' });
-          return;
-        }
-
-        // Фиксируем транзакцию
-        await client.query('COMMIT');
-
-        console.log(`Пользователь ID: ${userId} успешно удален`);
-
-        // Возвращаем успешный ответ
-        res.status(200).json({
-          message: 'Аккаунт успешно удален',
-          success: true,
-        });
-      } catch (error: any) {
-        // Откатываем транзакцию в случае ошибки
-        if (client) {
-          try {
-            await client.query('ROLLBACK');
-          } catch (rollbackError) {
-            console.error('Ошибка при откате транзакции:', rollbackError);
-          }
-        }
-        throw error;
       }
+
+      // Удаляем самого пользователя
+      const deleteResult = await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+
+      if (deleteResult.rowCount === 0) {
+        res.status(404).json({ error: 'Пользователь не найден' });
+        return;
+      }
+
+      console.log(`Пользователь ID: ${userId} успешно удален`);
+
+      // Возвращаем успешный ответ
+      res.status(200).json({
+        message: 'Аккаунт успешно удален',
+        success: true,
+      });
     } catch (error: any) {
       console.error('Delete account error:', error);
 
-      // Проверяем тип ошибки
       if (error.code === '23503') {
         // Ошибка внешнего ключа
         res.status(400).json({
@@ -297,11 +254,6 @@ export class AuthController {
         });
       } else {
         res.status(500).json({ error: 'Ошибка удаления аккаунта: ' + error.message });
-      }
-    } finally {
-      // Всегда освобождаем соединение
-      if (client) {
-        client.release();
       }
     }
   }
