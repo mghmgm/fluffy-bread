@@ -177,20 +177,20 @@ export class AuthController {
       const { password } = req.body;
 
       // Проверка пароля (обязательно для безопасности)
-      if (password) {
-        const user = await User.findById(userId);
-        if (!user) {
-          res.status(404).json({ error: 'Пользователь не найден' });
-          return;
-        }
-
-        const isPasswordValid = await User.comparePassword(password, user.password);
-        if (!isPasswordValid) {
-          res.status(401).json({ error: 'Неверный пароль' });
-          return;
-        }
-      } else {
+      if (!password) {
         res.status(400).json({ error: 'Пароль обязателен' });
+        return;
+      }
+
+      const user = await User.findById(userId);
+      if (!user) {
+        res.status(404).json({ error: 'Пользователь не найден' });
+        return;
+      }
+
+      const isPasswordValid = await User.comparePassword(password, user.password);
+      if (!isPasswordValid) {
+        res.status(401).json({ error: 'Неверный пароль' });
         return;
       }
 
@@ -200,17 +200,62 @@ export class AuthController {
       try {
         await client.query('BEGIN');
 
-        // 1. Удаляем прогресс (игровые баллы)
-        await client.query('DELETE FROM game_scores WHERE user_id = $1', [userId]);
+        // Удаляем ВСЕ связанные данные пользователя
+        // 1. Сначала проверяем существующие таблицы и удаляем из них данные
 
-        // 2. Удаляем настройки пользователя
-        await client.query('DELETE FROM user_settings WHERE user_id = $1', [userId]);
+        // Проверяем и удаляем из game_scores если таблица существует
+        try {
+          await client.query('DELETE FROM game_scores WHERE user_id = $1', [userId]);
+        } catch (error: any) {
+          // Игнорируем ошибку если таблицы не существует
+          if (error.code !== '42P01') {
+            // 42P01 - таблица не существует
+            console.warn('Ошибка при удалении из game_scores:', error.message);
+          }
+        }
 
-        // 3. Удаляем другие связанные данные (если есть)
-        // await client.query('DELETE FROM other_user_tables WHERE user_id = $1', [userId]);
+        // Проверяем и удаляем из game_runs если таблица существует
+        try {
+          await client.query('DELETE FROM game_runs WHERE user_id = $1', [userId]);
+        } catch (error: any) {
+          // Игнорируем ошибку если таблицы не существует
+          if (error.code !== '42P01') {
+            console.warn('Ошибка при удалении из game_runs:', error.message);
+          }
+        }
 
-        // 4. Удаляем самого пользователя
-        const result = await client.query('DELETE FROM users WHERE id = $1 RETURNING id', [userId]);
+        // Проверяем и удаляем из user_achievements если таблица существует
+        try {
+          await client.query('DELETE FROM user_achievements WHERE user_id = $1', [userId]);
+        } catch (error: any) {
+          // Игнорируем ошибку если таблицы не существует
+          if (error.code !== '42P01') {
+            console.warn('Ошибка при удалении из user_achievements:', error.message);
+          }
+        }
+
+        // Проверяем и удаляем из user_skins если таблица существует
+        try {
+          await client.query('DELETE FROM user_skins WHERE user_id = $1', [userId]);
+        } catch (error: any) {
+          // Игнорируем ошибку если таблицы не существует
+          if (error.code !== '42P01') {
+            console.warn('Ошибка при удалении из user_skins:', error.message);
+          }
+        }
+
+        // Проверяем и удаляем из settings если таблица существует
+        try {
+          await client.query('DELETE FROM settings WHERE user_id = $1', [userId]);
+        } catch (error: any) {
+          // Игнорируем ошибку если таблицы не существует
+          if (error.code !== '42P01') {
+            console.warn('Ошибка при удалении из settings:', error.message);
+          }
+        }
+
+        // И наконец удаляем самого пользователя
+        const result = await client.query('DELETE FROM users WHERE id = $1', [userId]);
 
         await client.query('COMMIT');
 
