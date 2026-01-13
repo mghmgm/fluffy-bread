@@ -636,6 +636,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   primaryButton: {
+    width: 200,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 28,
     paddingVertical: 12,
     borderRadius: 18,
@@ -651,6 +655,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   secondaryButton: {
+    width: 200,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 18,

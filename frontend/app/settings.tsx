@@ -184,7 +184,7 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff4dc', padding: 16, gap: 14 },
+  container: { flex: 1, backgroundColor: '#fff4dc', padding: 16, gap: 14, paddingTop: 50 },
   title: { fontSize: 22, fontWeight: '800', color: '#3d2c1f' },
 
   block: {
