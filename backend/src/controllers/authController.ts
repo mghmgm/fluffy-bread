@@ -173,51 +173,45 @@ export class AuthController {
         return;
       }
 
-      // Опционально: проверка пароля для подтверждения
-      const { password, confirm } = req.body;
-      
-      // Если нужно подтверждение пароля (рекомендуется для безопасности)
+      // Получаем пароль
+      const { password } = req.body;
+
+      // Проверка пароля (обязательно для безопасности)
       if (password) {
         const user = await User.findById(userId);
         if (!user) {
           res.status(404).json({ error: 'Пользователь не найден' });
           return;
         }
-        
+
         const isPasswordValid = await User.comparePassword(password, user.password);
         if (!isPasswordValid) {
           res.status(401).json({ error: 'Неверный пароль' });
           return;
         }
-      }
-      
-      // Опционально: подтверждение удаления
-      if (confirm !== 'DELETE') {
-        res.status(400).json({ 
-          error: 'Для удаления аккаунта введите слово DELETE в поле подтверждения',
-          confirmationRequired: true 
-        });
+      } else {
+        res.status(400).json({ error: 'Пароль обязателен' });
         return;
       }
 
       // Начинаем транзакцию для атомарного удаления всех связанных данных
       const client = await pool.connect();
-      
+
       try {
         await client.query('BEGIN');
 
         // 1. Удаляем прогресс (игровые баллы)
         await client.query('DELETE FROM game_scores WHERE user_id = $1', [userId]);
-        
+
         // 2. Удаляем настройки пользователя
         await client.query('DELETE FROM user_settings WHERE user_id = $1', [userId]);
-        
+
         // 3. Удаляем другие связанные данные (если есть)
         // await client.query('DELETE FROM other_user_tables WHERE user_id = $1', [userId]);
-        
+
         // 4. Удаляем самого пользователя
         const result = await client.query('DELETE FROM users WHERE id = $1 RETURNING id', [userId]);
-        
+
         await client.query('COMMIT');
 
         if (result.rowCount === 0) {
@@ -226,9 +220,9 @@ export class AuthController {
         }
 
         // Возвращаем успешный ответ
-        res.status(200).json({ 
+        res.status(200).json({
           message: 'Аккаунт успешно удален',
-          success: true 
+          success: true,
         });
       } catch (error) {
         await client.query('ROLLBACK');
