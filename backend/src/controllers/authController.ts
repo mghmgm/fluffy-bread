@@ -7,37 +7,41 @@ import pool from '../config/postgres';
 export class AuthController {
   // Регистрация
   static async register(req: Request, res: Response): Promise<void> {
-    const { username, email, password } = req.body;
+    try {
+      const { username, email, password } = req.body;
 
-    // Проверка существования пользователя
-    const existingUserByEmail = await User.findByEmail(email);
-    if (existingUserByEmail) {
-      res.status(400).json({ error: 'Email уже используется' });
-      return;
+      // Проверка существования пользователя
+      const existingUserByEmail = await User.findByEmail(email);
+      if (existingUserByEmail) {
+        res.status(400).json({ error: 'Email уже используется' });
+        return;
+      }
+
+      const existingUserByUsername = await User.findByUsername(username);
+      if (existingUserByUsername) {
+        res.status(400).json({ error: 'Username уже занят' });
+        return;
+      }
+
+      // Создание пользователя
+      const user = await User.create(username, email, password);
+
+      // Создание настроек по умолчанию
+      await Settings.create(user.id);
+
+      // Генерация токена
+      const token = generateToken({
+        userId: user.id,
+        email: user.email,
+      });
+
+      res.status(201).json({
+        user: User.toResponse(user),
+        token,
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Добро пожаловать!\n\nВаш прогресс теперь сохраняется в облаке.' });
     }
-
-    const existingUserByUsername = await User.findByUsername(username);
-    if (existingUserByUsername) {
-      res.status(400).json({ error: 'Username уже занят' });
-      return;
-    }
-
-    // Создание пользователя
-    const user = await User.create(username, email, password);
-
-    // Создание настроек по умолчанию
-    await Settings.create(user.id);
-
-    // Генерация токена
-    const token = generateToken({
-      userId: user.id,
-      email: user.email,
-    });
-
-    res.status(201).json({
-      user: User.toResponse(user),
-      token,
-    });
   }
 
   // Вход
