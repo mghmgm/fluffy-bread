@@ -41,23 +41,27 @@ export default function RegisterScreen() {
     }
 
     setLoading(true);
+    try {
+      // Очищаем локальные данные перед регистрацией нового пользователя
+      await AsyncStorage.multiRemove([
+        'fluffy-bread/skins/owned',
+        'fluffy-bread/skins/selected',
+        'fluffy-bread/achievements/state',
+        'fluffy-bread/runs/history',
+      ]);
+      resetGlobalSkinsState();
 
-    // Очищаем локальные данные перед регистрацией нового пользователя
-    await AsyncStorage.multiRemove([
-      'fluffy-bread/skins/owned',
-      'fluffy-bread/skins/selected',
-      'fluffy-bread/achievements/state',
-      'fluffy-bread/runs/history',
-    ]);
-    resetGlobalSkinsState();
+      const response = await api.register(username, email, password);
 
-    const response = await api.register(username, email, password);
-
-    Alert.alert(
-      'Успех! 🎉',
-      `Добро пожаловать, ${response.user.username}!\n\nВаш прогресс теперь сохраняется в облаке.`,
-      [{ text: 'Начать игру', onPress: () => router.replace('/') }],
-    );
+      Alert.alert(
+        'Успех! 🎉',
+        `Добро пожаловать, ${response.user.username}!\n\nВаш прогресс теперь сохраняется в облаке.`,
+        [{ text: 'Начать игру', onPress: () => router.replace('/') }],
+      );
+    } catch (error: any) {
+      Alert.alert('Ошибка регистрации', error.message || 'Попробуйте другой email');
+      setLoading(false);
+    }
   };
 
   return (
