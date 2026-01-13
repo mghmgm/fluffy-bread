@@ -47,21 +47,19 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
     ...options.headers,
   };
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
+  if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
+
+  const text = await response.text();
+  let data: any = null;
+  try { data = text ? JSON.parse(text) : null; } catch {}
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || 'Ошибка сервера');
+    throw new Error(data?.error || `HTTP ${response.status}: ${text.slice(0, 120)}`);
   }
 
-  return response.json();
+  return data;
 };
 
 // API методы

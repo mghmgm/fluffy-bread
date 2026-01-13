@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { User } from '../models/User';
-import { Settings } from '../models/Settings';
+// import { Settings } from '../models/Settings';
 import { generateToken } from '../utils/tokenUtils';
 import pool from '../config/postgres';
 
@@ -27,7 +27,7 @@ export class AuthController {
       const user = await User.create(username, email, password);
 
       // Создание настроек по умолчанию
-      await Settings.create(user.id);
+      // await Settings.create(user.id);
 
       // Генерация токена
       const token = generateToken({
@@ -40,8 +40,10 @@ export class AuthController {
         token,
       });
     } catch (error) {
-      res.status(500).json({ error: 'Добро пожаловать!\n\nВаш прогресс теперь сохраняется в облаке.' });
+      console.error('Register error:', error);
+      res.status(500).json({ error: 'Ошибка регистрации' });
     }
+
   }
 
   // Вход

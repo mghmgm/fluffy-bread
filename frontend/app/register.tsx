@@ -60,9 +60,9 @@ export default function RegisterScreen() {
       );
     } catch (error: any) {
       Alert.alert('Ошибка регистрации', error.message || 'Попробуйте другой email');
+    } finally {
       setLoading(false);
-    }
-  };
+    };
 
   return (
     <SafeAreaView style={styles.container}>
