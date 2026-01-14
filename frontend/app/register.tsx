@@ -62,7 +62,8 @@ export default function RegisterScreen() {
       Alert.alert('Ошибка регистрации', error.message || 'Попробуйте другой email');
     } finally {
       setLoading(false);
-    };
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
